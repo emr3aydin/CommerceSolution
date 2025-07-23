@@ -1,9 +1,10 @@
-﻿using Commerce.Infrastructure;
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Commerce.Domain.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Commerce.Infrastructure.Persistence;
+using Microsoft.OpenApi.Models;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +56,38 @@ builder.Services.AddControllers();
 
 builder.Services.AddMediatR(cfg =>
 cfg.RegisterServicesFromAssembly(typeof(Commerce.Application.AssemblyReference).Assembly));
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Commerce.API", Version = "v1" });
+
+    // Güvenlik tanımını ekleyin
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+    });
+
+    // Güvenlik gereksinimini ekleyin
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

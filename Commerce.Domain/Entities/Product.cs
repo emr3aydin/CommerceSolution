@@ -14,8 +14,12 @@ namespace Commerce.Domain.Entities
         public decimal Price { get; set; }
         public int Stock { get; set; }
         public string ImageUrl { get; set; } = string.Empty;
+        public string SKU { get; set; }
 
         public int CategoryId { get; set; }
+        public bool IsActive { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public virtual Category? Category { get; set; }
         public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
