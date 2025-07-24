@@ -19,17 +19,13 @@ namespace Commerce.Application.Features.Categories.Commands
 
         public async Task<int> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
         {
-            // 1. Kategoriyi veritabanından bul
             var category = await _context.Categories.FindAsync(new object[] { request.Id }, cancellationToken);
-
-            // 2. Kategori bulunamazsa hata fırlat (veya null döndür/özel bir sonuç dön)
             if (category == null)
             {
-                // Örneğin, bir özel istisna fırlatabilirsiniz:
                 throw new Exception($"Category with ID {request.Id} not found.");
+                
                 // Veya daha iyi bir yaklaşım: ApplicationException veya NotFoundException gibi kendi özel istisnanızı tanımlayın.
             }
-
             category.Name = request.Name;
             category.Description = request.Description;
             category.ImageUrl = request.ImageUrl;

@@ -1,4 +1,5 @@
 ﻿using Commerce.Domain.Entities;
+using Commerce.Infrastructure.Persistence;
 using MediatR.NotificationPublishers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -16,9 +17,9 @@ namespace Commerce.API.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly IConfiguration _configuration;
-        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly RoleManager<ApplicationRole> _roleManager;
 
-        public AuthController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, RoleManager<IdentityRole<Guid>> roleManager)
+        public AuthController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, RoleManager<ApplicationRole> roleManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -50,11 +51,11 @@ namespace Commerce.API.Controllers
             {
                 return BadRequest(result.Errors);
             }
-            if (!await _roleManager.RoleExistsAsync("Admin"))
+            if (!await _roleManager.RoleExistsAsync("Customer"))
             {
-                await _roleManager.CreateAsync(new IdentityRole<Guid>("Admin"));
+                await _roleManager.CreateAsync(new ApplicationRole("Customer"));
             }
-            await _userManager.AddToRoleAsync(user, "Admin");
+            await _userManager.AddToRoleAsync(user, "Customer");
 
             return Ok(new { Message = "Kullanıcı başarı ile oluşturuldu." });
 
