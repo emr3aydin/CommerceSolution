@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
 
 // Axios instance oluştur
 const api = axios.create({
@@ -9,6 +9,11 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 saniye timeout
+  // Development ortamında SSL sertifika hatalarını yoksay
+  httpsAgent: process.env.NODE_ENV === 'development' ? {
+    rejectUnauthorized: false
+  } : undefined,
 });
 
 // Request interceptor - JWT token ekle
@@ -31,11 +36,25 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token süresi dolmuş, kullanıcıyı login sayfasına yönlendir
-      Cookies.remove('auth-token');
-      window.location.href = '/auth/login';
+    // Network hatası
+    if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+      console.error('API sunucusuna bağlanılamıyor. Sunucunun çalıştığından emin olun.');
+      error.message = 'API sunucusuna bağlanılamıyor. Lütfen daha sonra tekrar deneyin.';
     }
+    
+    // 401 Unauthorized
+    if (error.response?.status === 401) {
+      Cookies.remove('auth-token');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/login';
+      }
+    }
+    
+    // 500 Server Error
+    if (error.response?.status >= 500) {
+      error.message = 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
+    }
+    
     return Promise.reject(error);
   }
 );
