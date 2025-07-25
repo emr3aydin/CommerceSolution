@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Commerce.Application.Features.Products.DTOs;
+using MediatR;
 
 namespace Commerce.Application.Features.Products.Queries
 {
-    internal class GetAllProductsQuery
+    public class GetAllProductsQuery : IRequest<List<ProductDto>>
     {
     }
 }

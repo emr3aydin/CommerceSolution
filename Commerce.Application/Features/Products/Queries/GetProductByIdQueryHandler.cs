@@ -1,24 +1,24 @@
-﻿using Commerce.Application.Features.Products.DTOs;
+using Commerce.Application.Features.Products.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Commerce.Application.Features.Products.Queries
 {
-    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, List<ProductDto>>
+    public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, ProductDto?>
     {
         private readonly ApplicationDbContext _context;
 
-        public GetAllProductsQueryHandler(ApplicationDbContext context)
+        public GetProductByIdQueryHandler(ApplicationDbContext context)
         {
             _context = context;
         }
 
-        public async Task<List<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
+        public async Task<ProductDto?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
         {
-            var products = await _context.Products
+            var product = await _context.Products
                 .Include(p => p.Category)
-                .Where(p => p.IsActive)
+                .Where(p => p.Id == request.Id && p.IsActive)
                 .Select(p => new ProductDto(
                     p.Id,
                     p.Name,
@@ -31,9 +31,9 @@ namespace Commerce.Application.Features.Products.Queries
                     p.IsActive,
                     p.CreatedAt
                 ))
-                .ToListAsync(cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
-            return products;
+            return product;
         }
     }
 }
