@@ -24,41 +24,79 @@ export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Kullanıcı bilgilerini localStorage'dan al
-    if (typeof window !== 'undefined') {
-      const userInfo = localStorage.getItem('userInfo');
-      if (userInfo) {
-        setUser(JSON.parse(userInfo));
-      }
+    setMounted(true);
+  }, []);
 
-      // Sepet öğe sayısını al (bu daha sonra context ile yönetilebilir)
-      const cartCount = localStorage.getItem('cartItemCount');
-      if (cartCount) {
-        setCartItemCount(parseInt(cartCount));
+  useEffect(() => {
+    // Sadece mount edildikten sonra localStorage'a eriş
+    if (mounted && typeof window !== 'undefined') {
+      try {
+        const userInfo = localStorage.getItem('userInfo');
+        if (userInfo && userInfo !== 'undefined') {
+          setUser(JSON.parse(userInfo));
+        }
+
+        // Sepet öğe sayısını al (bu daha sonra context ile yönetilebilir)
+        const cartCount = localStorage.getItem('cartItemCount');
+        if (cartCount && cartCount !== 'undefined') {
+          setCartItemCount(parseInt(cartCount));
+        }
+      } catch (error) {
+        console.error('localStorage error:', error);
+        // localStorage hatası durumunda temizle
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('cartItemCount');
       }
     }
-  }, []);
+  }, [mounted]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userInfo');
-      localStorage.removeItem('cartItemCount');
-      setUser(null);
-      setCartItemCount(0);
-      window.location.href = '/';
+      try {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('cartItemCount');
+        setUser(null);
+        setCartItemCount(0);
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = '/';
+      }
     }
   };
 
   const menuItems = [
     { name: "Ana Sayfa", href: "/" },
-    { name: "Ürünler", href: "/products" }, 
+    { name: "Ürünler", href: "/products" },
     { name: "Kategoriler", href: "/categories" },
     { name: "Hakkımızda", href: "/about" },
     { name: "İletişim", href: "/contact" },
   ];
+
+  // Component mount edilmeden boş render et
+  if (!mounted) {
+    return (
+      <HeroUINavbar maxWidth="xl" position="sticky">
+        <NavbarContent>
+          <NavbarBrand>
+            <NextLink href="/" className="font-bold text-inherit flex items-center gap-2">
+              <Logo />
+              <span>E-Ticaret</span>
+            </NextLink>
+          </NavbarBrand>
+        </NavbarContent>
+        <NavbarContent justify="end">
+          <NavbarItem>
+            <ThemeSwitch />
+          </NavbarItem>
+        </NavbarContent>
+      </HeroUINavbar>
+    );
+  }
 
   return (
     <HeroUINavbar maxWidth="xl" position="sticky" isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
@@ -110,7 +148,7 @@ export const Navbar = () => {
                 </Button>
               </Badge>
             </NavbarItem>
-            
+
             <Dropdown placement="bottom-end">
               <DropdownTrigger>
                 <Avatar
@@ -169,7 +207,7 @@ export const Navbar = () => {
             </Link>
           </NavbarMenuItem>
         ))}
-        
+
         {!user && (
           <>
             <NavbarMenuItem>
