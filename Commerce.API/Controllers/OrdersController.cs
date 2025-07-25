@@ -30,7 +30,7 @@ namespace Commerce.API.Controllers
         {
             try
             {
-                var userId = User.IsInRole("Admin") ? null : GetCurrentUserId();
+                var userId = User.IsInRole("Admin") ? (Guid?)null : GetCurrentUserId();
                 var query = new GetAllOrdersQuery(userId, status, pageNumber, pageSize);
                 var orders = await _mediator.Send(query);
                 return Ok(orders);
