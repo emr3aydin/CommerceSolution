@@ -16,8 +16,9 @@ export interface Product {
   categoryName?: string;
   isActive: boolean;
   imageUrl?: string;
+  sku?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Category {

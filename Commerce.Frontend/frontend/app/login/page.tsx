@@ -34,13 +34,22 @@ export default function LoginPage() {
                 const token = response.Token || response.token;
                 localStorage.setItem('authToken', token);
 
-                // Kullanıcı bilgileri için basit bir obje oluştur
-                const userInfo = {
-                    email: email,
-                    firstName: 'Kullanıcı', // Bu bilgiler JWT token'dan çıkarılabilir
-                    lastName: ''
-                };
-                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                // Kullanıcı bilgilerini al
+                try {
+                    const userResponse: any = await authAPI.getCurrentUser();
+                    console.log('User info:', userResponse);
+                    localStorage.setItem('userInfo', JSON.stringify(userResponse));
+                } catch (userError) {
+                    console.error('User info fetch error:', userError);
+                    // Fallback kullanıcı bilgisi
+                    const userInfo = {
+                        email: email,
+                        firstName: 'Kullanıcı',
+                        lastName: '',
+                        roles: ['Customer']
+                    };
+                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                }
 
                 // Ana sayfaya yönlendir
                 window.location.href = '/';
@@ -72,9 +81,9 @@ export default function LoginPage() {
                         )}
 
                         <Input
-                            type="email"
-                            label="E-posta"
-                            placeholder="E-posta adresinizi girin"
+                            type="text"
+                            label="E-posta veya Kullanıcı Adı"
+                            placeholder="E-posta adresinizi veya kullanıcı adınızı girin"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             isRequired

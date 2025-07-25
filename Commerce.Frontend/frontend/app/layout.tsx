@@ -2,17 +2,16 @@ import "@/styles/globals.css";
 import { Metadata, Viewport } from "next";
 import { Link } from "@heroui/link";
 import clsx from "clsx";
-import dynamic from "next/dynamic";
+// import dynamic from "next/dynamic";
 
 import { Providers } from "./providers";
 
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
 
-// Navbar'ı dinamik olarak yükle ve SSR'ı devre dışı bırak
-const Navbar = dynamic(() => import("@/components/navbar").then(mod => ({ default: mod.Navbar })), {
-  ssr: false,
-});
+// Navbar'ı doğrudan import et
+import { Navbar } from "@/components/navbar";
+import { AdminBar } from "@/components/admin-bar";
 
 export const metadata: Metadata = {
   title: {
@@ -48,6 +47,7 @@ export default function RootLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <div className="relative flex flex-col h-screen">
+            <AdminBar />
             <Navbar />
             <main className="container mx-auto max-w-7xl pt-16 px-6 flex-grow">
               {children}

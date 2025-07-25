@@ -290,3 +290,129 @@ export const EyeSlashFilledIcon = (props: IconSvgProps) => (
     />
   </svg>
 );
+
+export const SettingsIcon = (props: IconSvgProps) => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    focusable="false"
+    height="1em"
+    role="presentation"
+    viewBox="0 0 24 24"
+    width="1em"
+    {...props}
+  >
+    <path
+      d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z"
+      fill="currentColor"
+    />
+    <path
+      d="M19.7 12.25a7.68 7.68 0 0 0-.1-1.25h1.65a.75.75 0 0 0 0-1.5H19.6a7.68 7.68 0 0 0-.1-1.25l1.45-.84a.75.75 0 0 0-.75-1.3l-1.45.84a7.68 7.68 0 0 0-.7-1.09l.84-1.45a.75.75 0 0 0-1.3-.75l-.84 1.45a7.68 7.68 0 0 0-1.09-.7l.84-1.45a.75.75 0 0 0-1.3-.75l-.84 1.45a7.68 7.68 0 0 0-1.25-.1V2.75a.75.75 0 0 0-1.5 0v1.65a7.68 7.68 0 0 0-1.25.1l-.84-1.45a.75.75 0 0 0-1.3.75l.84 1.45a7.68 7.68 0 0 0-1.09.7l-1.45-.84a.75.75 0 0 0-.75 1.3l1.45.84a7.68 7.68 0 0 0-.7 1.09l-1.45-.84a.75.75 0 0 0-.75 1.3l1.45.84a7.68 7.68 0 0 0-.1 1.25H2.75a.75.75 0 0 0 0 1.5h1.65a7.68 7.68 0 0 0 .1 1.25l-1.45.84a.75.75 0 0 0 .75 1.3l1.45-.84a7.68 7.68 0 0 0 .7 1.09l-.84 1.45a.75.75 0 0 0 1.3.75l.84-1.45a7.68 7.68 0 0 0 1.09.7l-.84 1.45a.75.75 0 0 0 1.3.75l.84-1.45a7.68 7.68 0 0 0 1.25.1v1.65a.75.75 0 0 0 1.5 0v-1.65a7.68 7.68 0 0 0 1.25-.1l.84 1.45a.75.75 0 0 0 1.3-.75l-.84-1.45a7.68 7.68 0 0 0 1.09-.7l1.45.84a.75.75 0 0 0 .75-1.3l-1.45-.84a7.68 7.68 0 0 0 .7-1.09l1.45.84a.75.75 0 0 0 .75-1.3l-1.45-.84a7.68 7.68 0 0 0 .1-1.25h1.65a.75.75 0 0 0 0-1.5H19.7Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+export const ChartBarIcon = (props: IconSvgProps) => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    focusable="false"
+    height="1em"
+    role="presentation"
+    viewBox="0 0 24 24"
+    width="1em"
+    {...props}
+  >
+    <path
+      d="M18 20V10"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+    <path
+      d="M12 20V4"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+    <path
+      d="M6 20V14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+  </svg>
+);
+
+export const TagIcon = (props: IconSvgProps) => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    focusable="false"
+    height="1em"
+    role="presentation"
+    viewBox="0 0 24 24"
+    width="1em"
+    {...props}
+  >
+    <path
+      d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+    <circle cx="7" cy="7" r="1" fill="currentColor" />
+  </svg>
+);
+
+export const ClipboardListIcon = (props: IconSvgProps) => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    focusable="false"
+    height="1em"
+    role="presentation"
+    viewBox="0 0 24 24"
+    width="1em"
+    {...props}
+  >
+    <path
+      d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+    <rect
+      height="4"
+      rx="1"
+      ry="1"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      width="8"
+      x="8"
+      y="2"
+    />
+    <path
+      d="M9 12l2 2 4-4"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+    <path
+      d="M9 16h6"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    />
+  </svg>
+);

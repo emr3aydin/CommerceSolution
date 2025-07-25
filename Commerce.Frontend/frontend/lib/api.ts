@@ -98,6 +98,37 @@ export const productAPI = {
     async getById(id: number) {
         return apiClient.get(`/api/products/${id}`);
     },
+
+    async create(productData: {
+        name: string;
+        description?: string;
+        price: number;
+        stock: number;
+        imageUrl: string;
+        sku: string;
+        categoryId: number;
+        isActive: boolean;
+    }) {
+        return apiClient.post('/api/products', productData);
+    },
+
+    async update(id: number, productData: {
+        id: number;
+        name: string;
+        description?: string;
+        price: number;
+        stock: number;
+        imageUrl: string;
+        sku: string;
+        categoryId: number;
+        isActive: boolean;
+    }) {
+        return apiClient.put(`/api/products/${id}`, productData);
+    },
+
+    async delete(id: number) {
+        return apiClient.delete(`/api/products/${id}`);
+    },
 };
 
 // Category API fonksiyonları
@@ -109,12 +140,35 @@ export const categoryAPI = {
     async getById(id: number) {
         return apiClient.get(`/categories/${id}`);
     },
+
+    async create(categoryData: {
+        name: string;
+        description: string;
+        imageUrl: string;
+        isActive: boolean;
+    }) {
+        return apiClient.post('/categories/new', categoryData);
+    },
+
+    async update(categoryData: {
+        id: number;
+        name: string;
+        description: string;
+        imageUrl: string;
+        isActive: boolean;
+    }) {
+        return apiClient.post('/categories/update', categoryData);
+    },
+
+    async delete(id: number) {
+        return apiClient.delete(`/categories/${id}`);
+    },
 };
 
 // Auth API fonksiyonları
 export const authAPI = {
     async login(email: string, password: string) {
-        return apiClient.post('/login', { email, password });
+        return apiClient.post('/api/auth/login', { email, password });
     },
 
     async register(userData: {
@@ -127,7 +181,11 @@ export const authAPI = {
         gender: string;
         phoneNumber: string;
     }) {
-        return apiClient.post('/register', userData);
+        return apiClient.post('/api/auth/register', userData);
+    },
+
+    async getCurrentUser() {
+        return apiClient.get('/api/auth/me');
     },
 
     async logout() {

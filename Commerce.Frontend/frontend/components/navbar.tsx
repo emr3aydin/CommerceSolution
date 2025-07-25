@@ -99,7 +99,13 @@ export const Navbar = () => {
   }
 
   return (
-    <HeroUINavbar maxWidth="xl" position="sticky" isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
+    <>
+      {(user?.role === 'Admin' || user?.role === 'admin') && (
+        <div className="w-full bg-primary text-white text-center py-2 text-sm font-semibold">
+          <Link as={NextLink} href="/admin" color="white">Yönetim Paneli</Link>
+        </div>
+      )}
+      <HeroUINavbar maxWidth="xl" position="sticky" isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
       <NavbarContent>
         <NavbarMenuToggle
           aria-label={isMenuOpen ? "Close menu" : "Open menu"}
@@ -236,5 +242,6 @@ export const Navbar = () => {
         )}
       </NavbarMenu>
     </HeroUINavbar>
+    </>
   );
 };
