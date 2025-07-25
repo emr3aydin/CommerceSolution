@@ -1,6 +1,30 @@
 @Commerce.API_HostAddress = http://localhost:5290
 
-GET {{Commerce.API_HostAddress}}/weatherforecast/
+# Tüm ürünleri listeleme
+GET {{Commerce.API_HostAddress}}/api/products
 Accept: application/json
+
+###
+
+# ID'ye göre ürün getirme
+GET {{Commerce.API_HostAddress}}/api/products/1
+Accept: application/json
+
+###
+
+# Yeni ürün oluşturma
+POST {{Commerce.API_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Test Ürün",
+  "description": "Bu bir test ürünüdür",
+  "price": 99.99,
+  "stock": 50,
+  "imageUrl": "https://example.com/image.jpg",
+  "sku": "TEST-001",
+  "categoryId": 1,
+  "isActive": true
+}
 
 ###
