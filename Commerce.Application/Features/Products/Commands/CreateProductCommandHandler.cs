@@ -1,11 +1,11 @@
-﻿using Commerce.Application.Features.Products.DTOs;
-using Commerce.Domain.Entities;
+﻿using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Commerce.Application.Features.Products.Commands
 {
-    public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ProductDto>
+    public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, int>
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,8 +14,22 @@ namespace Commerce.Application.Features.Products.Commands
             _context = context;
         }
 
-        public async Task<ProductDto> Handle(CreateProductCommand request, CancellationToken cancellationToken)
+        public async Task<int> Handle(CreateProductCommand request, CancellationToken cancellationToken)
         {
+            // Kategori var mı kontrol et
+            var categoryExists = await _context.Categories
+                .AnyAsync(c => c.Id == request.CategoryId, cancellationToken);
+
+            if (!categoryExists)
+                throw new ArgumentException("Belirtilen kategori bulunamadı.");
+
+            // SKU benzersiz mi kontrol et
+            var skuExists = await _context.Products
+                .AnyAsync(p => p.SKU == request.SKU, cancellationToken);
+
+            if (skuExists)
+                throw new ArgumentException("Bu SKU zaten kullanımda.");
+
             var product = new Product
             {
                 Name = request.Name,
@@ -26,24 +40,13 @@ namespace Commerce.Application.Features.Products.Commands
                 SKU = request.SKU,
                 CategoryId = request.CategoryId,
                 IsActive = request.IsActive,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Products.Add(product);
             await _context.SaveChangesAsync(cancellationToken);
 
-            return new ProductDto(
-                product.Id,
-                product.Name,
-                product.Description ?? string.Empty,
-                product.Price,
-                product.Stock,
-                product.ImageUrl,
-                product.SKU,
-                product.CategoryId,
-                product.IsActive,
-                product.CreatedAt
-            );
+            return product.Id;
         }
     }
 }

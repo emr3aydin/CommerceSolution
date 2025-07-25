@@ -1,11 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MediatR;
-
-namespace Commerce.Application.Features.Categories.DTOs
+﻿namespace Commerce.Application.Features.Categories.DTOs
 {
-    public record CategoryDto(int ID, string Name, string Description, string ImageUrl, bool IsActive, DateTime CreatedAt);
+    public class CategoryDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int ProductCount { get; set; }
+    }
 }

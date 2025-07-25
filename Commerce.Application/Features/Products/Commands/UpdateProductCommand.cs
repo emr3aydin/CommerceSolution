@@ -1,8 +1,9 @@
-﻿using MediatR;
+using MediatR;
 
 namespace Commerce.Application.Features.Products.Commands
 {
-    public record CreateProductCommand(
+    public record UpdateProductCommand(
+        int Id,
         string Name,
         string? Description,
         decimal Price,
@@ -11,5 +12,5 @@ namespace Commerce.Application.Features.Products.Commands
         string SKU,
         int CategoryId,
         bool IsActive
-    ) : IRequest<int>;
+    ) : IRequest<bool>;
 }

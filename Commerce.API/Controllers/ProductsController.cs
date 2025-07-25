@@ -1,6 +1,7 @@
 ﻿using Commerce.Application.Features.Products.Commands;
 using Commerce.Application.Features.Products.Queries;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Commerce.API.Controllers
@@ -17,15 +18,21 @@ namespace Commerce.API.Controllers
         }
 
         /// <summary>
-        /// Tüm aktif ürünleri listeler
+        /// Tüm ürünleri listeler (filtreleme ve sayfalama ile)
         /// </summary>
-        /// <returns>Ürün listesi</returns>
         [HttpGet]
-        public async Task<IActionResult> GetAllProducts()
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllProducts(
+            [FromQuery] int? categoryId = null,
+            [FromQuery] bool? isActive = null,
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
-                var products = await _mediator.Send(new GetAllProductsQuery());
+                var query = new GetAllProductsQuery(categoryId, isActive, searchTerm, pageNumber, pageSize);
+                var products = await _mediator.Send(query);
                 return Ok(products);
             }
             catch (Exception ex)
@@ -37,9 +44,8 @@ namespace Commerce.API.Controllers
         /// <summary>
         /// ID'ye göre tekil ürün getirir
         /// </summary>
-        /// <param name="id">Ürün ID'si</param>
-        /// <returns>Ürün detayı</returns>
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetProductById(int id)
         {
             try
@@ -61,40 +67,80 @@ namespace Commerce.API.Controllers
         }
 
         /// <summary>
-        /// Yeni ürün oluşturur
+        /// Yeni ürün oluşturur (Sadece Admin)
         /// </summary>
-        /// <param name="command">Ürün oluşturma komutu</param>
-        /// <returns>Oluşturulan ürün</returns>
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateProduct([FromBody] CreateProductCommand command)
         {
             try
             {
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
-
-                // Basit validasyonlar
-                if (string.IsNullOrWhiteSpace(command.Name))
-                    return BadRequest(new { message = "Ürün adı gereklidir." });
-
-                if (command.Price <= 0)
-                    return BadRequest(new { message = "Fiyat 0'dan büyük olmalıdır." });
-
-                if (command.Stock < 0)
-                    return BadRequest(new { message = "Stok 0 veya daha büyük olmalıdır." });
-
-                if (string.IsNullOrWhiteSpace(command.SKU))
-                    return BadRequest(new { message = "SKU gereklidir." });
-
-                if (command.CategoryId <= 0)
-                    return BadRequest(new { message = "Geçerli bir kategori seçilmelidir." });
-
-                var product = await _mediator.Send(command);
-                return CreatedAtAction(nameof(GetProductById), new { id = product.ID }, product);
+                var productId = await _mediator.Send(command);
+                return CreatedAtAction(nameof(GetProductById), new { id = productId }, new { id = productId });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Ürün oluşturulurken bir hata oluştu.", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Ürün günceller (Sadece Admin)
+        /// </summary>
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateProduct(int id, [FromBody] UpdateProductCommand command)
+        {
+            try
+            {
+                if (id != command.Id)
+                    return BadRequest(new { message = "URL'deki ID ile komuttaki ID eşleşmiyor." });
+
+                var result = await _mediator.Send(command);
+                if (!result)
+                    return NotFound(new { message = "Ürün bulunamadı." });
+
+                return Ok(new { message = "Ürün başarıyla güncellendi." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Ürün güncellenirken bir hata oluştu.", error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Ürün siler (Sadece Admin)
+        /// </summary>
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteProduct(int id)
+        {
+            try
+            {
+                if (id <= 0)
+                    return BadRequest(new { message = "Geçerli bir ürün ID'si giriniz." });
+
+                var result = await _mediator.Send(new DeleteProductCommand(id));
+                if (!result)
+                    return NotFound(new { message = "Ürün bulunamadı." });
+
+                return NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Ürün silinirken bir hata oluştu.", error = ex.Message });
             }
         }
     }

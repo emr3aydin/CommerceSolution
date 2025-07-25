@@ -12,12 +12,10 @@ namespace Commerce.Domain.Entities
         public int Quantity { get; set; }
         public int ProductId { get; set; }
         public int CartId { get; set; }
-
-        public DateTime AddedAt { get; set; }
-        public string Note { get; set; }
+        public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+        public string? Note { get; set; }
 
         public virtual Product? Product { get; set; }
         public virtual Cart? Cart { get; set; }
-
     }
 }

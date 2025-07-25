@@ -22,7 +22,17 @@ namespace Commerce.Application.Features.Categories.Queries
         public async Task<IEnumerable<CategoryDto>> Handle(GetAllCategoriesQuery request, CancellationToken cancellationToken)
         {
             var categories = await _context.Categories
-                .Select(c => new CategoryDto(c.Id, c.Name, c.Description, c.ImageUrl, c.IsActive, c.CreatedAt))
+                .Include(c => c.Products)
+                .Select(c => new CategoryDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Description = c.Description,
+                    ImageUrl = c.ImageUrl,
+                    IsActive = c.IsActive,
+                    CreatedAt = c.CreatedAt,
+                    ProductCount = c.Products.Count
+                })
                 .ToListAsync(cancellationToken);
             return categories;
         }

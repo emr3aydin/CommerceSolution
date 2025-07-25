@@ -5,7 +5,7 @@ using Commerce.Domain.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Commerce.Infrastructure.Persistence;
 using Microsoft.OpenApi.Models;
-
+using Commerce.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,15 +28,9 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
             System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
     };
-
-
 });
 
-
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-
-
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
@@ -54,8 +48,8 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 
-builder.Services.AddMediatR(cfg =>
-cfg.RegisterServicesFromAssembly(typeof(Commerce.Application.AssemblyReference).Assembly));
+// Application Services Registration
+builder.Services.AddApplicationServices();
 
 builder.Services.AddSwaggerGen(c =>
 {

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Commerce.Application.Features.Products.Queries
 {
-    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, List<ProductDto>>
+    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductDto>>
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,23 +14,42 @@ namespace Commerce.Application.Features.Products.Queries
             _context = context;
         }
 
-        public async Task<List<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
+        public async Task<IEnumerable<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
         {
-            var products = await _context.Products
+            var query = _context.Products
                 .Include(p => p.Category)
-                .Where(p => p.IsActive)
-                .Select(p => new ProductDto(
-                    p.Id,
-                    p.Name,
-                    p.Description ?? string.Empty,
-                    p.Price,
-                    p.Stock,
-                    p.ImageUrl,
-                    p.SKU,
-                    p.CategoryId,
-                    p.IsActive,
-                    p.CreatedAt
-                ))
+                .AsQueryable();
+
+            // Filtreleme
+            if (request.CategoryId.HasValue)
+                query = query.Where(p => p.CategoryId == request.CategoryId.Value);
+
+            if (request.IsActive.HasValue)
+                query = query.Where(p => p.IsActive == request.IsActive.Value);
+
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+                query = query.Where(p => p.Name.Contains(request.SearchTerm) || 
+                                       p.Description!.Contains(request.SearchTerm) ||
+                                       p.SKU.Contains(request.SearchTerm));
+
+            // Sayfalama
+            var products = await query
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    Price = p.Price,
+                    Stock = p.Stock,
+                    ImageUrl = p.ImageUrl,
+                    SKU = p.SKU,
+                    CategoryId = p.CategoryId,
+                    CategoryName = p.Category!.Name,
+                    IsActive = p.IsActive,
+                    CreatedAt = p.CreatedAt
+                })
                 .ToListAsync(cancellationToken);
 
             return products;
