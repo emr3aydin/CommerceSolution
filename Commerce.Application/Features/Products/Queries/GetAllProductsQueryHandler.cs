@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Commerce.Application.Features.Orders
+namespace Commerce.Application.Features.Products.Queries
 {
-    internal class FileName
+    internal class GetAllProductsQueryHandler
     {
     }
 }
