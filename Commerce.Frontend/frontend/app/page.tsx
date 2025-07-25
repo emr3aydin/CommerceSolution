@@ -1,148 +1,170 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Card, CardBody, Image, Chip } from "@heroui/react";
-import { ArrowRight, Truck, Shield, Headphones } from "lucide-react";
-import Layout from "@/components/layout/Layout";
-import { useRouter } from "next/navigation";
+import { Card, CardBody, CardFooter } from "@heroui/card";
+import { Image } from "@heroui/image";
+import { Button } from "@heroui/button";
+import { Input } from "@heroui/input";
+import { Select, SelectItem } from "@heroui/select";
+import { Chip } from "@heroui/chip";
+import { productAPI, categoryAPI } from "@/lib/api";
+import { Product, Category } from "@/types";
 
 export default function Home() {
-  const router = useRouter();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const [productsData, categoriesData] = await Promise.all([
+        productAPI.getAll({ pageSize: 20, isActive: true }),
+        categoryAPI.getAll()
+      ]);
+      
+      setProducts((productsData as any)?.items || (productsData as Product[]));
+      setCategories(categoriesData as Category[]);
+    } catch (error) {
+      console.error("Veri yüklenirken hata:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      const params: any = { 
+        pageSize: 20, 
+        isActive: true 
+      };
+      
+      if (searchTerm) params.searchTerm = searchTerm;
+      if (selectedCategory) params.categoryId = parseInt(selectedCategory);
+
+      const productsData = await productAPI.getAll(params);
+      setProducts((productsData as any)?.items || (productsData as Product[]));
+    } catch (error) {
+      console.error("Arama hatası:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(price);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-xl">Yükleniyor...</div>
+      </div>
+    );
+  }
 
   return (
-    <Layout>
+    <div className="container mx-auto px-4 py-8">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Modern E-Ticaret Deneyimi
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              En kaliteli ürünleri en uygun fiyatlarla keşfedin
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
-                color="secondary"
-                onPress={() => router.push('/products')}
-                endContent={<ArrowRight size={20} />}
-              >
-                Alışverişe Başla
-              </Button>
-              <Button 
-                size="lg" 
-                variant="bordered" 
-                className="border-white text-white hover:bg-white hover:text-blue-600"
-                onPress={() => router.push('/categories')}
-              >
-                Kategorileri Keşfet
-              </Button>
-            </div>
-          </div>
+      <section className="text-center mb-12">
+        <h1 className="text-4xl font-bold mb-4">Hoş Geldiniz</h1>
+        <p className="text-lg text-gray-600 mb-8">
+          En kaliteli ürünleri keşfedin ve online alışverişin keyfini çıkarın
+        </p>
+        
+        {/* Search and Filter Section */}
+        <div className="flex flex-col md:flex-row gap-4 max-w-2xl mx-auto mb-8">
+          <Input
+            placeholder="Ürün ara..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="flex-1"
+          />
+          <Select
+            placeholder="Kategori seçin"
+            selectedKeys={selectedCategory ? [selectedCategory] : []}
+            onSelectionChange={(keys) => {
+              const selected = Array.from(keys as Set<string>)[0] || "";
+              setSelectedCategory(selected);
+            }}
+            className="md:w-48"
+          >
+            <SelectItem key="">Tüm Kategoriler</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id.toString()}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </Select>
+          <Button
+            color="primary"
+            onClick={handleSearch}
+            className="md:w-32"
+          >
+            Ara
+          </Button>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Truck className="text-blue-600" size={32} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Ücretsiz Kargo</h3>
-              <p className="text-gray-600">200 TL ve üzeri alışverişlerde ücretsiz kargo</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Shield className="text-green-600" size={32} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Güvenli Ödeme</h3>
-              <p className="text-gray-600">256-bit SSL şifreleme ile güvenli ödeme</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Headphones className="text-purple-600" size={32} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">7/24 Destek</h3>
-              <p className="text-gray-600">Müşteri hizmetlerimiz her zaman yanınızda</p>
-            </div>
+      {/* Products Grid */}
+      <section>
+        <h2 className="text-2xl font-bold mb-6">Ürünler</h2>
+        
+        {products.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-lg text-gray-500">Henüz ürün bulunmuyor.</p>
           </div>
-        </div>
-      </section>
-
-      {/* Welcome Section */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">CommerceStore'a Hoş Geldiniz</h2>
-            <p className="text-gray-600 text-lg mb-8">
-              Modern e-ticaret deneyimi için tasarlandı. HeroUI ile güçlendirildi.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card isPressable className="hover:scale-105 transition-transform">
-                <CardBody className="p-6 text-center">
-                  <div className="text-4xl mb-4">📱</div>
-                  <h3 className="font-semibold mb-2">Mobil Uyumlu</h3>
-                  <p className="text-sm text-gray-600">Tüm cihazlarda mükemmel deneyim</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <Card key={product.id} className="max-w-[400px]">
+                <CardBody className="p-0">
+                  <Image
+                    src={product.imageUrl || "/placeholder-product.jpg"}
+                    alt={product.name}
+                    className="w-full object-cover h-[200px]"
+                    fallbackSrc="/placeholder-product.jpg"
+                  />
                 </CardBody>
+                <CardFooter className="flex flex-col items-start p-4">
+                  <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    {product.description}
+                  </p>
+                  
+                  <div className="flex justify-between items-center w-full mb-3">
+                    <span className="text-xl font-bold text-primary">
+                      {formatPrice(product.price)}
+                    </span>
+                    <Chip size="sm" color={product.stock > 0 ? "success" : "danger"}>
+                      {product.stock > 0 ? `${product.stock} adet` : "Stokta yok"}
+                    </Chip>
+                  </div>
+                  
+                  <Button
+                    color="primary"
+                    className="w-full"
+                    disabled={product.stock === 0}
+                  >
+                    {product.stock > 0 ? "Sepete Ekle" : "Stokta Yok"}
+                  </Button>
+                </CardFooter>
               </Card>
-              
-              <Card isPressable className="hover:scale-105 transition-transform">
-                <CardBody className="p-6 text-center">
-                  <div className="text-4xl mb-4">⚡</div>
-                  <h3 className="font-semibold mb-2">Hızlı ve Modern</h3>
-                  <p className="text-sm text-gray-600">Next.js 15 ile yüksek performans</p>
-                </CardBody>
-              </Card>
-              
-              <Card isPressable className="hover:scale-105 transition-transform">
-                <CardBody className="p-6 text-center">
-                  <div className="text-4xl mb-4">🎨</div>
-                  <h3 className="font-semibold mb-2">Güzel Tasarım</h3>
-                  <p className="text-sm text-gray-600">HeroUI ile modern arayüz</p>
-                </CardBody>
-              </Card>
-              
-              <Card isPressable className="hover:scale-105 transition-transform">
-                <CardBody className="p-6 text-center">
-                  <div className="text-4xl mb-4">🔒</div>
-                  <h3 className="font-semibold mb-2">Güvenli</h3>
-                  <p className="text-sm text-gray-600">En yüksek güvenlik standartları</p>
-                </CardBody>
-              </Card>
-            </div>
+            ))}
           </div>
-        </div>
+        )}
       </section>
-
-      {/* CTA Section */}
-      <section className="py-16 bg-primary text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">Hemen Başlayın!</h2>
-          <p className="text-xl mb-8 opacity-90">
-            E-ticaret deneyiminizi yeni seviyeye taşıyın
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              color="secondary" 
-              size="lg"
-              onPress={() => router.push('/products')}
-            >
-              Ürünleri İncele
-            </Button>
-            <Button 
-              variant="bordered" 
-              size="lg" 
-              className="border-white text-white hover:bg-white hover:text-blue-600"
-              onPress={() => router.push('/auth/register')}
-            >
-              Ücretsiz Kayıt Ol
-            </Button>
-          </div>
-        </div>
-      </section>
-    </Layout>
+    </div>
   );
 }

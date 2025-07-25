@@ -1,62 +1,147 @@
-import axios from 'axios';
-import Cookies from 'js-cookie';
+// API konfigürasyonu ve utility fonksiyonları
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
 
-// Axios instance oluştur
-const api = axios.create({
+// Temel API istemcisi
+export const apiClient = {
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 10000, // 10 saniye timeout
-  // Development ortamında SSL sertifika hatalarını yoksay
-  httpsAgent: process.env.NODE_ENV === 'development' ? {
-    rejectUnauthorized: false
-  } : undefined,
-});
+  
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    const defaultHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
 
-// Request interceptor - JWT token ekle
-api.interceptors.request.use(
-  (config) => {
-    const token = Cookies.get('auth-token');
+    // Token varsa header'a ekle
+    const token = localStorage.getItem('authToken');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
-// Response interceptor - hata yönetimi
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Network hatası
-    if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-      console.error('API sunucusuna bağlanılamıyor. Sunucunun çalıştığından emin olun.');
-      error.message = 'API sunucusuna bağlanılamıyor. Lütfen daha sonra tekrar deneyin.';
-    }
-    
-    // 401 Unauthorized
-    if (error.response?.status === 401) {
-      Cookies.remove('auth-token');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
+    const config: RequestInit = {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
       }
-    }
-    
-    // 500 Server Error
-    if (error.response?.status >= 500) {
-      error.message = 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
-    }
-    
-    return Promise.reject(error);
-  }
-);
 
-export default api;
+      return await response.json();
+    } catch (error) {
+      console.error('API Request Error:', error);
+      throw error;
+    }
+  },
+
+  get<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
+  },
+
+  post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+  },
+};
+
+// Product API fonksiyonları
+export const productAPI = {
+  async getAll(params?: {
+    categoryId?: number;
+    isActive?: boolean;
+    searchTerm?: string;
+    pageNumber?: number;
+    pageSize?: number;
+  }) {
+    const query = new URLSearchParams();
+    if (params?.categoryId) query.append('categoryId', params.categoryId.toString());
+    if (params?.isActive !== undefined) query.append('isActive', params.isActive.toString());
+    if (params?.searchTerm) query.append('searchTerm', params.searchTerm);
+    if (params?.pageNumber) query.append('pageNumber', params.pageNumber.toString());
+    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+
+    const queryString = query.toString();
+    return apiClient.get(`/products${queryString ? `?${queryString}` : ''}`);
+  },
+
+  async getById(id: number) {
+    return apiClient.get(`/products/${id}`);
+  },
+};
+
+// Category API fonksiyonları
+export const categoryAPI = {
+  async getAll() {
+    return apiClient.get('/categories/getAll');
+  },
+
+  async getById(id: number) {
+    return apiClient.get(`/categories/${id}`);
+  },
+};
+
+// Auth API fonksiyonları
+export const authAPI = {
+  async login(email: string, password: string) {
+    return apiClient.post('/auth/login', { email, password });
+  },
+
+  async register(userData: {
+    email: string;
+    username: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    gender: string;
+    phoneNumber: string;
+  }) {
+    return apiClient.post('/auth/register', userData);
+  },
+
+  async logout() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userInfo');
+  },
+};
+
+// Cart API fonksiyonları
+export const cartAPI = {
+  async getCart() {
+    return apiClient.get('/carts');
+  },
+
+  async addToCart(productId: number, quantity: number) {
+    return apiClient.post('/carts/add', { productId, quantity });
+  },
+
+  async updateCart(cartItemId: number, quantity: number) {
+    return apiClient.put(`/carts/update/${cartItemId}`, { quantity });
+  },
+
+  async removeFromCart(cartItemId: number) {
+    return apiClient.delete(`/carts/remove/${cartItemId}`);
+  },
+};
