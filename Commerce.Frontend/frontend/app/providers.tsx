@@ -7,7 +7,7 @@ import { Toaster } from "sonner";
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <HeroUIProvider>
-      <NextThemesProvider attribute="class" defaultTheme="light">
+      <NextThemesProvider attribute="class" defaultTheme="light" enableSystem={false}>
         {children}
         <Toaster position="top-right" richColors />
       </NextThemesProvider>

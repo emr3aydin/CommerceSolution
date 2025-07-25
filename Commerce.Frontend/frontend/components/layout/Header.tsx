@@ -38,11 +38,11 @@ export default function Header() {
   }, [isAuthenticated, initializeAuth, fetchCart]);
 
   const menuItems = [
-    "Anasayfa",
-    "Kategoriler", 
-    "Ürünler",
-    "Hakkımızda",
-    "İletişim",
+    { name: "Anasayfa", href: "/" },
+    { name: "Kategoriler", href: "/categories" }, 
+    { name: "Ürünler", href: "/products" },
+    { name: "Hakkımızda", href: "/about" },
+    { name: "İletişim", href: "/contact" },
   ];
 
   const handleLogout = () => {
@@ -175,14 +175,14 @@ export default function Header() {
 
       <NavbarMenu>
         {menuItems.map((item, index) => (
-          <NavbarMenuItem key={`${item}-${index}`}>
+          <NavbarMenuItem key={`${item.name}-${index}`}>
             <Link
               color={index === 0 ? "primary" : "foreground"}
               className="w-full"
-              href={index === 0 ? "/" : `/${item.toLowerCase().replace('ı', 'i')}`}
+              href={item.href}
               size="lg"
             >
-              {item}
+              {item.name}
             </Link>
           </NavbarMenuItem>
         ))}
