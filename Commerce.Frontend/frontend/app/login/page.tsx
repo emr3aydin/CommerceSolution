@@ -10,103 +10,119 @@ import NextLink from "next/link";
 import { authAPI } from "@/lib/api";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isVisible, setIsVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [isVisible, setIsVisible] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
 
-  const toggleVisibility = () => setIsVisible(!isVisible);
+    const toggleVisibility = () => setIsVisible(!isVisible);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError("");
 
-    try {
-      const response: any = await authAPI.login(email, password);
-      
-      // Token ve kullanıcı bilgilerini kaydet
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('userInfo', JSON.stringify(response.user));
-      
-      // Ana sayfaya yönlendir
-      window.location.href = '/';
-    } catch (error: any) {
-      setError(error.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        try {
+            const response: any = await authAPI.login(email, password);
 
-  return (
-    <div className="flex items-center justify-center min-h-screen py-8">
-      <Card className="max-w-md w-full mx-4">
-        <CardHeader className="flex flex-col gap-3 text-center">
-          <h1 className="text-2xl font-bold">Giriş Yap</h1>
-          <p className="text-sm text-gray-600">Hesabınıza giriş yapın</p>
-        </CardHeader>
-        
-        <form onSubmit={handleLogin}>
-          <CardBody className="gap-4">
-            {error && (
-              <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-            
-            <Input
-              type="email"
-              label="E-posta"
-              placeholder="E-posta adresinizi girin"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              isRequired
-              variant="bordered"
-            />
-            
-            <Input
-              label="Şifre"
-              placeholder="Şifrenizi girin"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              endContent={
-                <button className="focus:outline-none" type="button" onClick={toggleVisibility}>
-                  {isVisible ? (
-                    <EyeSlashFilledIcon className="text-2xl text-default-400 pointer-events-none" />
-                  ) : (
-                    <EyeFilledIcon className="text-2xl text-default-400 pointer-events-none" />
-                  )}
-                </button>
-              }
-              type={isVisible ? "text" : "password"}
-              isRequired
-              variant="bordered"
-            />
-          </CardBody>
-          
-          <CardFooter className="flex flex-col gap-4">
-            <Button
-              type="submit"
-              color="primary"
-              className="w-full"
-              isLoading={isLoading}
-              disabled={isLoading}
-            >
-              Giriş Yap
-            </Button>
-            
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                Hesabınız yok mu?{" "}
-                <Link as={NextLink} href="/register" color="primary">
-                  Kayıt olun
-                </Link>
-              </p>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
-  );
+            // API'den dönen response yapısı: { Token: "..." }
+            console.log('Login response:', response);
+
+            if (response.Token || response.token) {
+                // Token'ı kaydet
+                const token = response.Token || response.token;
+                localStorage.setItem('authToken', token);
+
+                // Kullanıcı bilgileri için basit bir obje oluştur
+                const userInfo = {
+                    email: email,
+                    firstName: 'Kullanıcı', // Bu bilgiler JWT token'dan çıkarılabilir
+                    lastName: ''
+                };
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+                // Ana sayfaya yönlendir
+                window.location.href = '/';
+            } else {
+                setError('Giriş başarısız. Token alınamadı.');
+            }
+        } catch (error: any) {
+            console.error('Login error:', error);
+            setError(error.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-screen py-8">
+            <Card className="max-w-md w-full mx-4">
+                <CardHeader className="flex flex-col gap-3 text-center">
+                    <h1 className="text-2xl font-bold">Giriş Yap</h1>
+                    <p className="text-sm text-gray-600">Hesabınıza giriş yapın</p>
+                </CardHeader>
+
+                <form onSubmit={handleLogin}>
+                    <CardBody className="gap-4">
+                        {error && (
+                            <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded">
+                                {error}
+                            </div>
+                        )}
+
+                        <Input
+                            type="email"
+                            label="E-posta"
+                            placeholder="E-posta adresinizi girin"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            isRequired
+                            variant="bordered"
+                        />
+
+                        <Input
+                            label="Şifre"
+                            placeholder="Şifrenizi girin"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            endContent={
+                                <button className="focus:outline-none" type="button" onClick={toggleVisibility}>
+                                    {isVisible ? (
+                                        <EyeSlashFilledIcon className="text-2xl text-default-400 pointer-events-none" />
+                                    ) : (
+                                        <EyeFilledIcon className="text-2xl text-default-400 pointer-events-none" />
+                                    )}
+                                </button>
+                            }
+                            type={isVisible ? "text" : "password"}
+                            isRequired
+                            variant="bordered"
+                        />
+                    </CardBody>
+
+                    <CardFooter className="flex flex-col gap-4">
+                        <Button
+                            type="submit"
+                            color="primary"
+                            className="w-full"
+                            isLoading={isLoading}
+                            disabled={isLoading}
+                        >
+                            Giriş Yap
+                        </Button>
+
+                        <div className="text-center">
+                            <p className="text-sm text-gray-600">
+                                Hesabınız yok mu?{" "}
+                                <Link as={NextLink} href="/register" color="primary">
+                                    Kayıt olun
+                                </Link>
+                            </p>
+                        </div>
+                    </CardFooter>
+                </form>
+            </Card>
+        </div>
+    );
 }

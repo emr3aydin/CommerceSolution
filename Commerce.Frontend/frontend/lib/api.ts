@@ -4,148 +4,155 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057'
 
 // Temel API istemcisi
 export const apiClient = {
-  baseURL: API_BASE_URL,
-  
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    const defaultHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    baseURL: API_BASE_URL,
 
-    // Token varsa header'a ekle (sadece browser'da)
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        defaultHeaders['Authorization'] = `Bearer ${token}`;
-      }
-    }
+    async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+        const url = `${this.baseURL}${endpoint}`;
 
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    };
+        const defaultHeaders: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
 
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
+        // Token varsa header'a ekle (sadece browser'da)
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                defaultHeaders['Authorization'] = `Bearer ${token}`;
+            }
+        }
 
-      return await response.json();
-    } catch (error) {
-      console.error('API Request Error:', error);
-      throw error;
-    }
-  },
+        const config: RequestInit = {
+            ...options,
+            headers: {
+                ...defaultHeaders,
+                ...options.headers,
+            },
+        };
 
-  get<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'GET' });
-  },
+        try {
+            const response = await fetch(url, config);
 
-  post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  },
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+            }
 
-  put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  },
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Expected JSON response but got: ${text}`);
+            }
+        } catch (error) {
+            console.error('API Request Error:', error);
+            throw error;
+        }
+    },
 
-  delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
-  },
+    get<T>(endpoint: string, options?: RequestInit): Promise<T> {
+        return this.request<T>(endpoint, { ...options, method: 'GET' });
+    },
+
+    post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+        return this.request<T>(endpoint, {
+            ...options,
+            method: 'POST',
+            body: data ? JSON.stringify(data) : undefined,
+        });
+    },
+
+    put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+        return this.request<T>(endpoint, {
+            ...options,
+            method: 'PUT',
+            body: data ? JSON.stringify(data) : undefined,
+        });
+    },
+
+    delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
+        return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+    },
 };
 
 // Product API fonksiyonları
 export const productAPI = {
-  async getAll(params?: {
-    categoryId?: number;
-    isActive?: boolean;
-    searchTerm?: string;
-    pageNumber?: number;
-    pageSize?: number;
-  }) {
-    const query = new URLSearchParams();
-    if (params?.categoryId) query.append('categoryId', params.categoryId.toString());
-    if (params?.isActive !== undefined) query.append('isActive', params.isActive.toString());
-    if (params?.searchTerm) query.append('searchTerm', params.searchTerm);
-    if (params?.pageNumber) query.append('pageNumber', params.pageNumber.toString());
-    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+    async getAll(params?: {
+        categoryId?: number;
+        isActive?: boolean;
+        searchTerm?: string;
+        pageNumber?: number;
+        pageSize?: number;
+    }) {
+        const query = new URLSearchParams();
+        if (params?.categoryId) query.append('categoryId', params.categoryId.toString());
+        if (params?.isActive !== undefined) query.append('isActive', params.isActive.toString());
+        if (params?.searchTerm) query.append('searchTerm', params.searchTerm);
+        if (params?.pageNumber) query.append('pageNumber', params.pageNumber.toString());
+        if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
 
-    const queryString = query.toString();
-    return apiClient.get(`/products${queryString ? `?${queryString}` : ''}`);
-  },
+        const queryString = query.toString();
+        return apiClient.get(`/api/products${queryString ? `?${queryString}` : ''}`);
+    },
 
-  async getById(id: number) {
-    return apiClient.get(`/products/${id}`);
-  },
+    async getById(id: number) {
+        return apiClient.get(`/api/products/${id}`);
+    },
 };
 
 // Category API fonksiyonları
 export const categoryAPI = {
-  async getAll() {
-    return apiClient.get('/categories/getAll');
-  },
+    async getAll() {
+        return apiClient.get('/categories/getAll');
+    },
 
-  async getById(id: number) {
-    return apiClient.get(`/categories/${id}`);
-  },
+    async getById(id: number) {
+        return apiClient.get(`/categories/${id}`);
+    },
 };
 
 // Auth API fonksiyonları
 export const authAPI = {
-  async login(email: string, password: string) {
-    return apiClient.post('/login', { email, password });
-  },
+    async login(email: string, password: string) {
+        return apiClient.post('/login', { email, password });
+    },
 
-  async register(userData: {
-    email: string;
-    username: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-    dateOfBirth: string;
-    gender: string;
-    phoneNumber: string;
-  }) {
-    return apiClient.post('/register', userData);
-  },
+    async register(userData: {
+        email: string;
+        username: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        dateOfBirth: string;
+        gender: string;
+        phoneNumber: string;
+    }) {
+        return apiClient.post('/register', userData);
+    },
 
-  async logout() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userInfo');
-    }
-  },
+    async logout() {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userInfo');
+        }
+    },
 };
 
 // Cart API fonksiyonları
 export const cartAPI = {
-  async getCart() {
-    return apiClient.get('/carts');
-  },
+    async getCart() {
+        return apiClient.get('/api/carts');
+    },
 
-  async addToCart(productId: number, quantity: number) {
-    return apiClient.post('/carts/add', { productId, quantity });
-  },
+    async addToCart(productId: number, quantity: number) {
+        return apiClient.post('/api/carts/add', { productId, quantity });
+    },
 
-  async updateCart(cartItemId: number, quantity: number) {
-    return apiClient.put(`/carts/update/${cartItemId}`, { quantity });
-  },
+    async updateCart(cartItemId: number, quantity: number) {
+        return apiClient.put(`/api/carts/update/${cartItemId}`, { quantity });
+    },
 
-  async removeFromCart(cartItemId: number) {
-    return apiClient.delete(`/carts/remove/${cartItemId}`);
-  },
+    async removeFromCart(cartItemId: number) {
+        return apiClient.delete(`/api/carts/remove/${cartItemId}`);
+    },
 };
