@@ -22,25 +22,26 @@ namespace Commerce.Application.Features.Categories.Queries
         public async Task<CategoryDto> Handle(GetCategoryByIdQuery request, CancellationToken cancellationToken)
         {
             var category = await _context.Categories
-                                         .AsNoTracking() // Sadece okuma işlemi olduğu için takip etmeyi kapatmak performansı artırabilir
-                                         .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
+                .Include(c => c.Products)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == request.Id, cancellationToken);
 
             if (category == null)
             {
-                // Kategori bulunamazsa özel bir istisna fırlatabilirsiniz.
-                // Örneğin: throw new NotFoundException($"Category with ID {request.Id} not found.");
                 throw new Exception($"ID'si {request.Id} olan kategori bulunamadı.");
             }
 
             // Category varlığını CategoryDto'ya dönüştür
-            var categoryDto = new CategoryDto(
-                category.Id,
-                category.Name,
-                category.Description,
-                category.ImageUrl,
-                category.IsActive,
-                category.CreatedAt
-            );
+            var categoryDto = new CategoryDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                ImageUrl = category.ImageUrl,
+                IsActive = category.IsActive,
+                CreatedAt = category.CreatedAt,
+                ProductCount = category.Products.Count
+            };
 
             return categoryDto;
         }

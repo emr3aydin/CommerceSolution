@@ -19,18 +19,20 @@ namespace Commerce.Application.Features.Products.Queries
             var product = await _context.Products
                 .Include(p => p.Category)
                 .Where(p => p.Id == request.Id && p.IsActive)
-                .Select(p => new ProductDto(
-                    p.Id,
-                    p.Name,
-                    p.Description ?? string.Empty,
-                    p.Price,
-                    p.Stock,
-                    p.ImageUrl,
-                    p.SKU,
-                    p.CategoryId,
-                    p.IsActive,
-                    p.CreatedAt
-                ))
+                .Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    Price = p.Price,
+                    Stock = p.Stock,
+                    ImageUrl = p.ImageUrl,
+                    SKU = p.SKU,
+                    CategoryId = p.CategoryId,
+                    CategoryName = p.Category!.Name,
+                    IsActive = p.IsActive,
+                    CreatedAt = p.CreatedAt
+                })
                 .FirstOrDefaultAsync(cancellationToken);
 
             return product;
