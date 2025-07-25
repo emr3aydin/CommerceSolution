@@ -13,10 +13,12 @@ export const apiClient = {
       'Content-Type': 'application/json',
     };
 
-    // Token varsa header'a ekle
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    // Token varsa header'a ekle (sadece browser'da)
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        defaultHeaders['Authorization'] = `Bearer ${token}`;
+      }
     }
 
     const config: RequestInit = {
@@ -105,7 +107,7 @@ export const categoryAPI = {
 // Auth API fonksiyonları
 export const authAPI = {
   async login(email: string, password: string) {
-    return apiClient.post('/auth/login', { email, password });
+    return apiClient.post('/login', { email, password });
   },
 
   async register(userData: {
@@ -118,12 +120,14 @@ export const authAPI = {
     gender: string;
     phoneNumber: string;
   }) {
-    return apiClient.post('/auth/register', userData);
+    return apiClient.post('/register', userData);
   },
 
   async logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userInfo');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userInfo');
+    }
   },
 };
 

@@ -15,12 +15,10 @@ import { Link } from "@heroui/link";
 import { Badge } from "@heroui/badge";
 import { Avatar } from "@heroui/avatar";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/dropdown";
-import { link as linkStyles } from "@heroui/theme";
 import NextLink from "next/link";
-import clsx from "clsx";
 
 import { ThemeSwitch } from "@/components/theme-switch";
-import { Logo, ShoppingCartIcon, UserIcon } from "@/components/icons";
+import { Logo, ShoppingCartIcon } from "@/components/icons";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,65 +27,65 @@ export const Navbar = () => {
 
   useEffect(() => {
     // Kullanıcı bilgilerini localStorage'dan al
-    const userInfo = localStorage.getItem('userInfo');
-    if (userInfo) {
-      setUser(JSON.parse(userInfo));
-    }
+    if (typeof window !== 'undefined') {
+      const userInfo = localStorage.getItem('userInfo');
+      if (userInfo) {
+        setUser(JSON.parse(userInfo));
+      }
 
-    // Sepet öğe sayısını al (bu daha sonra context ile yönetilebilir)
-    const cartCount = localStorage.getItem('cartItemCount');
-    if (cartCount) {
-      setCartItemCount(parseInt(cartCount));
+      // Sepet öğe sayısını al (bu daha sonra context ile yönetilebilir)
+      const cartCount = localStorage.getItem('cartItemCount');
+      if (cartCount) {
+        setCartItemCount(parseInt(cartCount));
+      }
     }
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('cartItemCount');
-    setUser(null);
-    setCartItemCount(0);
-    window.location.href = '/';
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('cartItemCount');
+      setUser(null);
+      setCartItemCount(0);
+      window.location.href = '/';
+    }
   };
 
   const menuItems = [
     { name: "Ana Sayfa", href: "/" },
-    { name: "Ürünler", href: "/products" },
+    { name: "Ürünler", href: "/products" }, 
     { name: "Kategoriler", href: "/categories" },
     { name: "Hakkımızda", href: "/about" },
     { name: "İletişim", href: "/contact" },
   ];
 
   return (
-    <HeroUINavbar 
-      onMenuOpenChange={setIsMenuOpen}
-      className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-    >
+    <HeroUINavbar maxWidth="xl" position="sticky" isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
       <NavbarContent>
         <NavbarMenuToggle
-          aria-label={isMenuOpen ? "Menüyü kapat" : "Menüyü aç"}
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           className="sm:hidden"
         />
         <NavbarBrand>
-          <NextLink href="/" className="flex items-center space-x-2">
+          <NextLink href="/" className="font-bold text-inherit flex items-center gap-2">
             <Logo />
-            <p className="font-bold text-inherit">Commerce</p>
+            <span>E-Ticaret</span>
           </NextLink>
         </NavbarBrand>
       </NavbarContent>
 
       <NavbarContent className="hidden sm:flex gap-4" justify="center">
         {menuItems.map((item) => (
-          <NavbarItem key={item.name}>
-            <NextLink
+          <NavbarItem key={item.href}>
+            <Link
+              as={NextLink}
+              color="foreground"
               href={item.href}
-              className={clsx(
-                linkStyles({ color: "foreground" }),
-                "data-[active=true]:text-primary data-[active=true]:font-medium"
-              )}
+              className="w-full"
             >
               {item.name}
-            </NextLink>
+            </Link>
           </NavbarItem>
         ))}
       </NavbarContent>
@@ -96,86 +94,107 @@ export const Navbar = () => {
         <NavbarItem>
           <ThemeSwitch />
         </NavbarItem>
-        
-        <NavbarItem>
-          <Button
-            as={NextLink}
-            href="/cart"
-            isIconOnly
-            variant="light"
-            aria-label="Sepet"
-          >
-            <Badge 
-              content={cartItemCount > 0 ? cartItemCount.toString() : null}
-              color="danger"
-              size="sm"
-            >
-              <ShoppingCartIcon size={20} />
-            </Badge>
-          </Button>
-        </NavbarItem>
 
         {user ? (
-          <NavbarItem>
+          <>
+            <NavbarItem>
+              <Badge content={cartItemCount} color="danger" size="sm" showOutline={false}>
+                <Button
+                  as={NextLink}
+                  href="/cart"
+                  isIconOnly
+                  variant="light"
+                  aria-label="Sepet"
+                >
+                  <ShoppingCartIcon size={20} />
+                </Button>
+              </Badge>
+            </NavbarItem>
+            
             <Dropdown placement="bottom-end">
               <DropdownTrigger>
                 <Avatar
                   isBordered
                   as="button"
                   className="transition-transform"
-                  color="secondary"
-                  name={user.firstName}
+                  color="primary"
+                  name={user.firstName + " " + user.lastName}
                   size="sm"
-                  src={user.avatar || undefined}
                 />
               </DropdownTrigger>
-              <DropdownMenu aria-label="Profil Eylemleri" variant="flat">
+              <DropdownMenu aria-label="Profile Actions" variant="flat">
                 <DropdownItem key="profile" className="h-14 gap-2">
-                  <p className="font-semibold">Giriş yapıldı:</p>
-                  <p className="font-semibold">{user.email}</p>
-                </DropdownItem>
-                <DropdownItem key="settings" as={NextLink} href="/profile">
-                  Profilim
+                  <p className="font-semibold">Hoş geldin</p>
+                  <p className="font-semibold">{user.firstName} {user.lastName}</p>
                 </DropdownItem>
                 <DropdownItem key="orders" as={NextLink} href="/orders">
                   Siparişlerim
+                </DropdownItem>
+                <DropdownItem key="profile_settings" as={NextLink} href="/profile">
+                  Profil Ayarları
                 </DropdownItem>
                 <DropdownItem key="logout" color="danger" onClick={handleLogout}>
                   Çıkış Yap
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
-          </NavbarItem>
+          </>
         ) : (
-          <NavbarItem className="hidden lg:flex">
-            <Button as={NextLink} color="primary" href="/login" variant="flat">
-              Giriş Yap
-            </Button>
-          </NavbarItem>
+          <>
+            <NavbarItem className="hidden lg:flex">
+              <Link as={NextLink} href="/login">
+                Giriş Yap
+              </Link>
+            </NavbarItem>
+            <NavbarItem>
+              <Button as={NextLink} color="primary" href="/register" variant="flat">
+                Kayıt Ol
+              </Button>
+            </NavbarItem>
+          </>
         )}
       </NavbarContent>
 
       <NavbarMenu>
-        {menuItems.map((item, index) => (
-          <NavbarMenuItem key={`${item.name}-${index}`}>
-            <NextLink
-              color={
-                index === 2 ? "primary" : index === menuItems.length - 1 ? "danger" : "foreground"
-              }
+        {menuItems.map((item) => (
+          <NavbarMenuItem key={item.href}>
+            <Link
+              as={NextLink}
+              color="foreground"
               className="w-full"
               href={item.href}
+              size="lg"
             >
               {item.name}
-            </NextLink>
+            </Link>
           </NavbarMenuItem>
         ))}
         
         {!user && (
-          <NavbarMenuItem>
-            <NextLink href="/login" className="w-full text-primary">
-              Giriş Yap
-            </NextLink>
-          </NavbarMenuItem>
+          <>
+            <NavbarMenuItem>
+              <Link
+                as={NextLink}
+                color="primary"
+                className="w-full"
+                href="/login"
+                size="lg"
+              >
+                Giriş Yap
+              </Link>
+            </NavbarMenuItem>
+            <NavbarMenuItem>
+              <Link
+                as={NextLink}
+                color="primary"
+                className="w-full"
+                href="/register"
+                size="lg"
+              >
+                Kayıt Ol
+              </Link>
+            </NavbarMenuItem>
+          </>
         )}
       </NavbarMenu>
     </HeroUINavbar>
