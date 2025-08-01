@@ -4,12 +4,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Tüm sepet işlemleri için kimlik doğrulama gerekli
+    [Authorize]
     public class CartsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -19,9 +20,6 @@ namespace Commerce.API.Controllers
             _mediator = mediator;
         }
 
-        /// <summary>
-        /// Kullanıcının sepetini getirir
-        /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetCart()
         {
@@ -29,21 +27,22 @@ namespace Commerce.API.Controllers
             {
                 var userId = GetCurrentUserId();
                 var cart = await _mediator.Send(new GetCartByUserIdQuery(userId));
-                
-                if (cart == null)
-                    return Ok(new { message = "Sepet boş.", cart = new { items = new List<object>(), totalAmount = 0, totalItems = 0 } });
+
+                if (cart.Data == null)
+                    return Ok(ApiResponse<object>.SuccessNoData("Sepet boş."));
 
                 return Ok(cart);
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Sepet getirilirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Sepet getirilirken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Sepete ürün ekler
-        /// </summary>
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
         {
@@ -53,64 +52,75 @@ namespace Commerce.API.Controllers
                 var command = new AddToCartCommand(userId, request.ProductId, request.Quantity);
 
                 var result = await _mediator.Send(command);
-                if (!result)
-                    return BadRequest(new { message = "Ürün sepete eklenemedi." });
+                if (!result.Success)
+                    return BadRequest(ApiResponse.ErrorResponse(result.Message));
 
-                return Ok(new { message = "Ürün sepete başarıyla eklendi." });
+                return Ok(ApiResponse.SuccessResponse(result.Message));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürün sepete eklenirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Ürün sepete eklenirken bir hata oluştu: {ex.Message} {ex.InnerException}"));
             }
         }
 
-        /// <summary>
-        /// Sepetten ürün çıkarır
-        /// </summary>
         [HttpDelete("remove/{cartItemId}")]
         public async Task<IActionResult> RemoveFromCart(int cartItemId)
         {
             try
             {
                 if (cartItemId <= 0)
-                    return BadRequest(new { message = "Geçerli bir sepet öğesi ID'si giriniz." });
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir sepet öğesi ID'si giriniz."));
 
                 var userId = GetCurrentUserId();
                 var command = new RemoveFromCartCommand(userId, cartItemId);
 
                 var result = await _mediator.Send(command);
-                if (!result)
-                    return NotFound(new { message = "Sepet öğesi bulunamadı." });
+                if (!result.Success)
+                    return NotFound(ApiResponse.ErrorResponse("Sepet öğesi bulunamadı."));
 
-                return Ok(new { message = "Ürün sepetten başarıyla çıkarıldı." });
+                return Ok(ApiResponse.SuccessResponse("Ürün sepetten başarıyla çıkarıldı."));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürün sepetten çıkarılırken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Ürün sepetten çıkarılırken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Sepeti temizler
-        /// </summary>
         [HttpDelete("clear")]
-        public IActionResult ClearCart()
+        public async Task<IActionResult> ClearCart()
         {
             try
             {
                 var userId = GetCurrentUserId();
-                // Bu işlev için ayrı bir command oluşturulabilir
-                // Şimdilik mevcut sepetteki tüm öğeleri tek tek silme mantığı kullanılabilir
-                
-                return Ok(new { message = "Sepet başarıyla temizlendi." });
+                var command = new ClearCartCommand(userId);
+                var result = await _mediator.Send(command);
+
+                if (!result.Success)
+                {
+                    return BadRequest(ApiResponse.ErrorResponse("Sepet temizlenirken bir sorun oluştu."));
+                }
+
+                return Ok(ApiResponse.SuccessResponse("Sepet başarıyla temizlendi."));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Sepet temizlenirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Sepet temizlenirken bir hata oluştu: {ex.Message}"));
             }
         }
 

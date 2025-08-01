@@ -64,13 +64,18 @@ export default function RegisterPage() {
         gender: formData.gender,
       };
 
-      await authAPI.register(userData);
-      setSuccess("Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
+      const response = await authAPI.register(userData);
       
-      // 2 saniye sonra login sayfasına yönlendir
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      if (response.success) {
+        setSuccess(response.message || "Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
+        
+        // 2 saniye sonra login sayfasına yönlendir
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else {
+        setError(response.message || 'Kayıt sırasında bir hata oluştu.');
+      }
       
     } catch (error: any) {
       setError(error.message || 'Kayıt sırasında bir hata oluştu.');

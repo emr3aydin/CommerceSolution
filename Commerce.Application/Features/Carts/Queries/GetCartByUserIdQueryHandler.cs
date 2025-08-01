@@ -2,10 +2,11 @@ using Commerce.Application.Features.Carts.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain;
 
 namespace Commerce.Application.Features.Carts.Queries
 {
-    public class GetCartByUserIdQueryHandler : IRequestHandler<GetCartByUserIdQuery, CartDto?>
+    public class GetCartByUserIdQueryHandler : IRequestHandler<GetCartByUserIdQuery, ApiResponse<CartDto?>>
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,7 +15,7 @@ namespace Commerce.Application.Features.Carts.Queries
             _context = context;
         }
 
-        public async Task<CartDto?> Handle(GetCartByUserIdQuery request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<CartDto?>> Handle(GetCartByUserIdQuery request, CancellationToken cancellationToken)
         {
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
@@ -22,7 +23,9 @@ namespace Commerce.Application.Features.Carts.Queries
                 .FirstOrDefaultAsync(c => c.UserId == request.UserId, cancellationToken);
 
             if (cart == null)
-                return null;
+            {
+                return ApiResponse<CartDto?>.SuccessResponse(null, "Sepet boþ.");
+            }
 
             var cartDto = new CartDto
             {
@@ -43,7 +46,7 @@ namespace Commerce.Application.Features.Carts.Queries
             cartDto.TotalAmount = cartDto.CartItems.Sum(ci => ci.TotalPrice);
             cartDto.TotalItems = cartDto.CartItems.Sum(ci => ci.Quantity);
 
-            return cartDto;
+            return ApiResponse<CartDto?>.SuccessResponse(cartDto);
         }
     }
 }

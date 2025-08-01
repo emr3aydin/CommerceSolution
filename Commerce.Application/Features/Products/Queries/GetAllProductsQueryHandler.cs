@@ -2,10 +2,11 @@
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Products.Queries
 {
-    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductDto>>
+    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, ApiResponse<IEnumerable<ProductDto>>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,13 +15,12 @@ namespace Commerce.Application.Features.Products.Queries
             _context = context;
         }
 
-        public async Task<IEnumerable<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<IEnumerable<ProductDto>>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken) // Updated return type
         {
             var query = _context.Products
                 .Include(p => p.Category)
                 .AsQueryable();
 
-            // Filtreleme
             if (request.CategoryId.HasValue)
                 query = query.Where(p => p.CategoryId == request.CategoryId.Value);
 
@@ -28,11 +28,10 @@ namespace Commerce.Application.Features.Products.Queries
                 query = query.Where(p => p.IsActive == request.IsActive.Value);
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
-                query = query.Where(p => p.Name.Contains(request.SearchTerm) || 
-                                       p.Description!.Contains(request.SearchTerm) ||
-                                       p.SKU.Contains(request.SearchTerm));
+                query = query.Where(p => p.Name.Contains(request.SearchTerm) ||
+                                           p.Description!.Contains(request.SearchTerm) ||
+                                           p.SKU.Contains(request.SearchTerm));
 
-            // Sayfalama
             var products = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
@@ -49,10 +48,10 @@ namespace Commerce.Application.Features.Products.Queries
                     CategoryName = p.Category!.Name,
                     IsActive = p.IsActive,
                     CreatedAt = p.CreatedAt
-                })
+                }).AsNoTracking()
                 .ToListAsync(cancellationToken);
 
-            return products;
+            return ApiResponse<IEnumerable<ProductDto>>.SuccessResponse(products);
         }
     }
 }

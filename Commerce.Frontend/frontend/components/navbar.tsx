@@ -19,12 +19,24 @@ import NextLink from "next/link";
 
 import { ThemeSwitch } from "@/components/theme-switch";
 import { Logo, ShoppingCartIcon } from "@/components/icons";
+import { CartPreview } from "@/components/cart-preview";
+import { useCart } from "@/contexts/CartContext";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [cartItemCount, setCartItemCount] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [isCartPreviewOpen, setIsCartPreviewOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
+  
+  const { getTotalItems, items } = useCart();
+
+  // Sepet değişikliklerini dinle
+  useEffect(() => {
+    if (mounted) {
+      setCartItemCount(getTotalItems());
+    }
+  }, [items, mounted, getTotalItems]); // items array'ini direkt dinle
 
   useEffect(() => {
     setMounted(true);
@@ -38,17 +50,10 @@ export const Navbar = () => {
         if (userInfo && userInfo !== 'undefined') {
           setUser(JSON.parse(userInfo));
         }
-
-        // Sepet öğe sayısını al (bu daha sonra context ile yönetilebilir)
-        const cartCount = localStorage.getItem('cartItemCount');
-        if (cartCount && cartCount !== 'undefined') {
-          setCartItemCount(parseInt(cartCount));
-        }
       } catch (error) {
         console.error('localStorage error:', error);
         // localStorage hatası durumunda temizle
         localStorage.removeItem('userInfo');
-        localStorage.removeItem('cartItemCount');
       }
     }
   }, [mounted]);
@@ -58,9 +63,9 @@ export const Navbar = () => {
       try {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userInfo');
+        localStorage.removeItem('cart');
         localStorage.removeItem('cartItemCount');
         setUser(null);
-        setCartItemCount(0);
         window.location.href = '/';
       } catch (error) {
         console.error('Logout error:', error);
@@ -75,6 +80,7 @@ export const Navbar = () => {
     { name: "Kategoriler", href: "/categories" },
     { name: "Hakkımızda", href: "/about" },
     { name: "İletişim", href: "/contact" },
+    ...(process.env.NODE_ENV === 'development' ? [{ name: "API Test", href: "/api-test" }] : []),
   ];
 
   // Component mount edilmeden boş render et
@@ -102,7 +108,7 @@ export const Navbar = () => {
     <>
       {(user?.role === 'Admin' || user?.role === 'admin') && (
         <div className="w-full bg-primary text-white text-center py-2 text-sm font-semibold">
-          <Link as={NextLink} href="/admin" color="white">Yönetim Paneli</Link>
+          <Link as={NextLink} href="/admin" className="text-white">Yönetim Paneli</Link>
         </div>
       )}
       <HeroUINavbar maxWidth="xl" position="sticky" isMenuOpen={isMenuOpen} onMenuOpenChange={setIsMenuOpen}>
@@ -144,11 +150,10 @@ export const Navbar = () => {
             <NavbarItem>
               <Badge content={cartItemCount} color="danger" size="sm" showOutline={false}>
                 <Button
-                  as={NextLink}
-                  href="/cart"
                   isIconOnly
                   variant="light"
                   aria-label="Sepet"
+                  onPress={() => setIsCartPreviewOpen(true)}
                 >
                   <ShoppingCartIcon size={20} />
                 </Button>
@@ -242,6 +247,12 @@ export const Navbar = () => {
         )}
       </NavbarMenu>
     </HeroUINavbar>
+    
+    {/* Cart Preview */}
+    <CartPreview 
+      isOpen={isCartPreviewOpen} 
+      onClose={() => setIsCartPreviewOpen(false)} 
+    />
     </>
   );
 };

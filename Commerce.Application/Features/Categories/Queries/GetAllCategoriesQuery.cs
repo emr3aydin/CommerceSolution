@@ -1,4 +1,6 @@
 ﻿using Commerce.Application.Features.Categories.DTOs;
+using Commerce.Application.Features.Products.DTOs;
+using Commerce.Domain;
 using MediatR;
 using System;
 using System.Collections;
@@ -9,5 +11,5 @@ using System.Threading.Tasks;
 
 namespace Commerce.Application.Features.Categories.Queries
 {
-    public record GetAllCategoriesQuery() : IRequest<IEnumerable<CategoryDto>>;
+    public record GetAllCategoriesQuery() : IRequest<ApiResponse<IReadOnlyList<CategoryDto>>>;
 }

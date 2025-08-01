@@ -1,9 +1,10 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Commerce.Application.Features.Categories.Commands;
+﻿using Commerce.Application.Features.Categories.Commands;
 using Commerce.Application.Features.Categories.Queries;
+using Commerce.Domain;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Commerce.API.Controllers
 {
@@ -40,62 +41,69 @@ namespace Commerce.API.Controllers
                 return BadRequest("Geçersiz kategori ID'si.");
             }
 
-            try
-            {
-                var query = new GetCategoryByIdQuery(id);
-                var category = await _mediator.Send(query);
+            var query = new GetCategoryByIdQuery(id);
+            var category = await _mediator.Send(query);
 
-                if (category == null)
-                {
-                    return NotFound($"ID'si {id} olan kategori bulunamadı.");
-                }
-
-                return Ok(category);
-            }
-            catch (Exception ex)
+            if (category == null)
             {
-                if (ex.Message.Contains("bulunamadı"))
-                {
-                    return NotFound(ex.Message);
-                }
-                return StatusCode(500, $"Kategori alınırken bir hata oluştu: {ex.Message}");
+                return NotFound($"ID'si {id} olan kategori bulunamadı.");
             }
+
+            return Ok(category);
+            
+           
         }
 
         [HttpPost]
         [Route("new")]
         [Authorize(Roles = "Admin")]
-
         public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryCommand command)
         {
             if (command == null || string.IsNullOrWhiteSpace(command.Name))
             {
-                return BadRequest("Invalid category data.");
+                return BadRequest(ApiResponse.ErrorResponse("Invalid category data. Category name cannot be empty."));
             }
-            var categoryId = await _mediator.Send(command);
-            return CreatedAtAction(nameof(GetAll), new { id = categoryId }, null);
-        }
 
+            var response = await _mediator.Send(command);
+
+            if (response.Success)
+            {
+          
+                return Ok(response);
+            }
+            else
+            {
+ 
+                return BadRequest(response); 
+            }
+        }
         [HttpPost]
         [Route("update")]
         [Authorize(Roles = "Admin")]
-
         public async Task<IActionResult> UpdateCategory([FromBody] UpdateCategoryCommand command)
         {
             if (string.IsNullOrWhiteSpace(command.Name))
             {
-                return BadRequest("Invalid Data");
+                return BadRequest(ApiResponse.ErrorResponse("Kategori adı boş olamaz."));
             }
-            var categoryId = await _mediator.Send(command);
-            return Ok();
+
+            var response = await _mediator.Send(command);
+
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return NotFound(response);
+            }
         }
 
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] // Sadece yöneticilerin silme yapmasına izin ver
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            // ID'nin geçerli olup olmadığını kontrol et
             if (id <= 0)
             {
                 return BadRequest("Geçersiz kategori ID'si.");
@@ -103,23 +111,18 @@ namespace Commerce.API.Controllers
 
             try
             {
-                // Silme komutunu ID ile oluştur
                 var command = new DeleteCategoryCommand(id);
-                // Komutu MediatR aracılığıyla gönder
-                await _mediator.Send(command);
+                var resp = await _mediator.Send(command);
 
-                // Silme başarılıysa 204 No Content döndür (silme işlemlerinde yaygındır)
-                return NoContent(); // Veya 200 OK("Kategori başarıyla silindi") döndürebilirsiniz.
+                return Ok(resp);
             }
             catch (Exception ex)
             {
-                // Komut işleyicisinden (CommandHandler) fırlatılan istisnaları burada yakala
-                // Örneğin, "Kategori bulunamadı" mesajını içeren bir istisna ise NotFound döndür
-                if (ex.Message.Contains("bulunamadı")) // Basit bir kontrol
+                
+                if (ex.Message.Contains("bulunamadı")) 
                 {
                     return NotFound(ex.Message);
                 }
-                // Diğer tüm hatalar için 500 Internal Server Error döndür
                 return StatusCode(500, $"Kategori silinirken bir hata oluştu: {ex.Message}");
             }
         }

@@ -25,9 +25,11 @@ export interface Category {
   id: number;
   name: string;
   description?: string;
+  imageUrl?: string;
   isActive: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+  productCount: number;
 }
 
 export interface User {
@@ -57,6 +59,25 @@ export interface Cart {
   updatedAt: string;
 }
 
+// Backend'den gelen Cart yapısı
+export interface BackendCart {
+  id: number;
+  userId: string;
+  cartItems: BackendCartItem[];
+  totalAmount: number;
+  totalItems: number;
+}
+
+export interface BackendCartItem {
+  id: number;
+  productId: number;
+  productName: string;
+  productImageUrl: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+}
+
 export interface Order {
   id: number;
   userId: string;
@@ -64,6 +85,30 @@ export interface Order {
   status: string;
   orderDate: string;
   items: OrderItem[];
+}
+
+// Backend'den gelen Order yapısı
+export interface BackendOrder {
+  id: number;
+  orderNumber: string;
+  orderDate: string;
+  totalAmount: number;
+  shippingAddress: string;
+  status: string;
+  createdAt: string;
+  approvedAt: string;
+  userId: string;
+  userName: string;
+  orderItems: BackendOrderItem[];
+}
+
+export interface BackendOrderItem {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
 export interface OrderItem {
@@ -75,9 +120,9 @@ export interface OrderItem {
 }
 
 export interface ApiResponse<T> {
-  data: T;
   success: boolean;
-  message?: string;
+  message: string;
+  data: T;
 }
 
 export interface PaginatedResponse<T> {
@@ -86,4 +131,90 @@ export interface PaginatedResponse<T> {
   pageNumber: number;
   pageSize: number;
   totalPages: number;
+}
+
+// API DTO Interfaces
+export interface RegisterDto {
+  email: string;
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  phoneNumber: string;
+}
+
+export interface LoginDto {
+  email: string;
+  password: string;
+}
+
+export interface CreateAdminDto {
+  email: string;
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  phoneNumber: string;
+}
+
+export interface AddToCartRequest {
+  productId: number;
+  quantity: number;
+}
+
+export interface CreateCategoryCommand {
+  name: string;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
+}
+
+export interface UpdateCategoryCommand {
+  id: number;
+  name: string;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
+}
+
+export interface CreateProductCommand {
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  sku: string;
+  categoryId: number;
+  isActive: boolean;
+}
+
+export interface UpdateProductCommand {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  sku: string;
+  categoryId: number;
+  isActive: boolean;
+}
+
+export interface CreateOrderCommand {
+  userId: string;
+  shippingAddress: string;
+  orderItems: CreateOrderItemCommand[];
+}
+
+export interface CreateOrderItemCommand {
+  productId: number;
+  quantity: number;
+}
+
+export interface UpdateOrderStatusRequest {
+  status: string;
 }

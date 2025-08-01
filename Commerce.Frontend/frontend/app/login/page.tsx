@@ -24,37 +24,42 @@ export default function LoginPage() {
         setError("");
 
         try {
-            const response: any = await authAPI.login(email, password);
+            const response = await authAPI.login({ email, password });
 
-            // API'den dönen response yapısı: { Token: "..." }
             console.log('Login response:', response);
 
-            if (response.Token || response.token) {
-                // Token'ı kaydet
-                const token = response.Token || response.token;
-                localStorage.setItem('authToken', token);
+            if (response.success && response.data) {
+                // Token'ı response.data'dan al (API response yapısına göre)
+                const token = (response.data as any).token || (response.data as any).Token || (response.data as string);
+                if (token) {
+                    localStorage.setItem('authToken', token);
 
-                // Kullanıcı bilgilerini al
-                try {
-                    const userResponse: any = await authAPI.getCurrentUser();
-                    console.log('User info:', userResponse);
-                    localStorage.setItem('userInfo', JSON.stringify(userResponse));
-                } catch (userError) {
-                    console.error('User info fetch error:', userError);
-                    // Fallback kullanıcı bilgisi
-                    const userInfo = {
-                        email: email,
-                        firstName: 'Kullanıcı',
-                        lastName: '',
-                        roles: ['Customer']
-                    };
-                    localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                    // Kullanıcı bilgilerini al
+                    try {
+                        const userResponse = await authAPI.getCurrentUser();
+                        console.log('User info:', userResponse);
+                        if (userResponse.success && userResponse.data) {
+                            localStorage.setItem('userInfo', JSON.stringify(userResponse.data));
+                        }
+                    } catch (userError) {
+                        console.error('User info fetch error:', userError);
+                        // Fallback kullanıcı bilgisi
+                        const userInfo = {
+                            email: email,
+                            firstName: 'Kullanıcı',
+                            lastName: '',
+                            roles: ['Customer']
+                        };
+                        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                    }
+
+                    // Ana sayfaya yönlendir
+                    window.location.href = '/';
+                } else {
+                    setError('Giriş başarısız. Token alınamadı.');
                 }
-
-                // Ana sayfaya yönlendir
-                window.location.href = '/';
             } else {
-                setError('Giriş başarısız. Token alınamadı.');
+                setError(response.message || 'Giriş başarısız.');
             }
         } catch (error: any) {
             console.error('Login error:', error);

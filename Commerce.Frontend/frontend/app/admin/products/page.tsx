@@ -7,9 +7,12 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Chip } from "@heroui/chip";
+import { Pagination } from "@heroui/pagination";
 import { SearchIcon } from "@/components/icons";
 import { productAPI, categoryAPI } from "@/lib/api";
+import { uploadImage, getImagePreview } from "@/lib/imageUpload";
 import { Product, Category } from "@/types";
+import { addToast } from "@heroui/toast";
 
 interface User {
   id: string;
@@ -29,6 +32,7 @@ export default function AdminProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
   const pageSize = 12;
   const router = useRouter();
 
@@ -45,6 +49,11 @@ export default function AdminProductsPage() {
     categoryId: "",
     isActive: true
   });
+  
+  // Resim yükleme state'leri
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -75,8 +84,24 @@ export default function AdminProductsPage() {
 
   const loadCategories = async () => {
     try {
-      const response = await categoryAPI.getAll() as Category[];
-      setCategories(response);
+      const response = await categoryAPI.getAll();
+      if (response.success && response.data) {
+        setCategories(response.data);
+        
+        // Kategoriler yüklendiğinde toplam ürün sayısını hesapla
+        const totalProductCount = response.data.reduce((total, category) => total + category.productCount, 0);
+        console.log("Kategorilerden hesaplanan toplam ürün sayısı:", totalProductCount);
+        
+        // Eğer kategori seçilmemişse veya "all" seçiliyse toplam sayıyı kullan
+        if (!selectedCategory || selectedCategory === "all") {
+          setTotalProducts(totalProductCount);
+          setTotalPages(Math.ceil(totalProductCount / pageSize));
+          console.log("Toplam ürün sayısı güncellendi:", {
+            totalProducts: totalProductCount,
+            totalPages: Math.ceil(totalProductCount / pageSize)
+          });
+        }
+      }
     } catch (error) {
       console.error("Kategoriler yüklenirken hata:", error);
     }
@@ -92,21 +117,75 @@ export default function AdminProductsPage() {
         ...(selectedCategory && selectedCategory !== "all" && { categoryId: parseInt(selectedCategory) })
       };
 
-      const response = await productAPI.getAll(params) as any;
+      const response = await productAPI.getAll(params);
       
-      if (response.items) {
-        setProducts(response.items);
-        setTotalPages(Math.ceil(response.totalCount / pageSize));
-      } else if (Array.isArray(response)) {
-        setProducts(response);
-        setTotalPages(1);
+      console.log("API Response:", response);
+      
+      if (response.success && response.data) {
+        if (response.data.items) {
+          setProducts(response.data.items);
+          
+          // Eğer kategori seçiliyse o kategorinin productCount'unu kullan
+          if (selectedCategory && selectedCategory !== "all") {
+            const selectedCat = categories.find(cat => cat.id.toString() === selectedCategory);
+            if (selectedCat) {
+              setTotalProducts(selectedCat.productCount);
+              setTotalPages(Math.ceil(selectedCat.productCount / pageSize));
+              console.log("Seçili kategori için pagination:", {
+                categoryName: selectedCat.name,
+                productCount: selectedCat.productCount,
+                totalPages: Math.ceil(selectedCat.productCount / pageSize)
+              });
+            } else {
+              // Fallback: Mevcut kategorilerin toplamı veya 0
+              const totalFromCategories = categories.reduce((total, category) => total + category.productCount, 0);
+              setTotalProducts(totalFromCategories);
+              setTotalPages(Math.ceil(totalFromCategories / pageSize));
+            }
+          } else {
+            // Tüm kategoriler seçiliyse, kategorilerden toplam sayıyı hesapla
+            const totalFromCategories = categories.reduce((total, category) => total + category.productCount, 0);
+            if (totalFromCategories > 0) {
+              setTotalProducts(totalFromCategories);
+              setTotalPages(Math.ceil(totalFromCategories / pageSize));
+              console.log("Tüm kategoriler için pagination:", {
+                totalFromCategories,
+                totalPages: Math.ceil(totalFromCategories / pageSize)
+              });
+            } else {
+              // Fallback: Varsayılan değerler
+              setTotalProducts(0);
+              setTotalPages(1);
+            }
+          }
+          
+          console.log("Pagination Info:", {
+            currentProducts: products.length,
+            pageSize: pageSize,
+            currentPage: currentPage
+          });
+        } else if (Array.isArray(response.data)) {
+          setProducts(response.data);
+          setTotalProducts(response.data.length);
+          setTotalPages(1);
+          console.log("Array Response - Products:", response.data.length);
+        } else {
+          setProducts([]);
+          setTotalProducts(0);
+          setTotalPages(1);
+          console.log("No products found");
+        }
       } else {
         setProducts([]);
+        setTotalProducts(0);
         setTotalPages(1);
+        console.log("API Error:", response);
       }
     } catch (error) {
       console.error("Ürünler yüklenirken hata:", error);
       setProducts([]);
+      setTotalProducts(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -115,7 +194,13 @@ export default function AdminProductsPage() {
   const handleCreateProduct = async () => {
     try {
       if (!formData.name || !formData.price || !formData.stock || !formData.categoryId) {
-        alert("Lütfen tüm zorunlu alanları doldurun.");
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Lütfen tüm zorunlu alanları doldurun.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
@@ -130,21 +215,49 @@ export default function AdminProductsPage() {
         isActive: formData.isActive
       };
 
-      await productAPI.create(productData);
-      setShowCreateForm(false);
-      resetForm();
-      loadProducts();
-      alert("Ürün başarıyla oluşturuldu!");
+      const response = await productAPI.create(productData);
+      if (response.success) {
+        setShowCreateForm(false);
+        resetForm();
+        loadProducts();
+        addToast({
+          title: "Başarıyla oluşturuldu",
+          color: "success",
+          description: response.message || "Ürün başarıyla oluşturuldu!",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
+      } else {
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: response.message || "Ürün oluşturulurken bir hata oluştu.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
+      }
     } catch (error) {
       console.error("Ürün oluşturulurken hata:", error);
-      alert("Ürün oluşturulurken bir hata oluştu.");
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: "Ürün oluşturulurken bir hata oluştu.",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
   const handleUpdateProduct = async () => {
     try {
       if (!editingProduct || !formData.name || !formData.price || !formData.stock || !formData.categoryId) {
-        alert("Lütfen tüm zorunlu alanları doldurun.");
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Lütfen tüm zorunlu alanları doldurun.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
@@ -160,26 +273,70 @@ export default function AdminProductsPage() {
         isActive: formData.isActive
       };
 
-      await productAPI.update(editingProduct.id, productData);
-      setEditingProduct(null);
-      resetForm();
-      loadProducts();
-      alert("Ürün başarıyla güncellendi!");
+      const response = await productAPI.update(editingProduct.id, productData);
+      if (response.success) {
+        setEditingProduct(null);
+        resetForm();
+        loadProducts();
+        addToast({
+          title: "Başarıyla güncellendi",
+          color: "success",
+          description: response.message || "Ürün başarıyla güncellendi!",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
+      } else {
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: response.message || "Ürün güncellenirken bir hata oluştu.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
+      }
     } catch (error) {
       console.error("Ürün güncellenirken hata:", error);
-      alert("Ürün güncellenirken bir hata oluştu.");
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: "Ürün güncellenirken bir hata oluştu.",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
   const handleDeleteProduct = async (productId: number) => {
     if (confirm("Bu ürünü silmek istediğinizden emin misiniz?")) {
       try {
-        await productAPI.delete(productId);
-        loadProducts();
-        alert("Ürün başarıyla silindi!");
+        const response = await productAPI.delete(productId);
+        if (response.success) {
+          loadProducts();
+          addToast({
+            title: "Başarıyla silindi",
+            color: "success",
+            description: response.message || "Ürün başarıyla silindi!",
+            timeout: 3000,
+            shouldShowTimeoutProgress: true,
+          });
+        } else {
+          addToast({
+            title: "Hata",
+            color: "danger",
+            description: response.message || "Ürün silinirken bir hata oluştu.",
+            timeout: 3000,
+            shouldShowTimeoutProgress: true,
+          });
+        }
       } catch (error) {
         console.error("Ürün silinirken hata:", error);
-        alert("Ürün silinirken bir hata oluştu.");
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Ürün silinirken bir hata oluştu.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
       }
     }
   };
@@ -197,6 +354,9 @@ export default function AdminProductsPage() {
       isActive: product.isActive
     });
     setShowCreateForm(true);
+    // Mevcut resim varsa önizleme temizle
+    setImagePreview("");
+    setSelectedFile(null);
   };
 
   const resetForm = () => {
@@ -211,6 +371,91 @@ export default function AdminProductsPage() {
       isActive: true
     });
     setEditingProduct(null);
+    setSelectedFile(null);
+    setImagePreview("");
+    setUploadingImage(false);
+  };
+
+  // Resim dosyası seçildiğinde
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Dosya boyutu kontrolü (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Dosya boyutu 5MB'dan büyük olamaz",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
+        return;
+      }
+
+      // Dosya tipi kontrolü
+      if (!file.type.startsWith('image/')) {
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Sadece resim dosyaları yüklenebilir",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Önizleme oluştur
+      const preview = await getImagePreview(file);
+      setImagePreview(preview);
+
+    } catch (error) {
+      console.error('Dosya seçim hatası:', error);
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: "Dosya seçilirken hata oluştu",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
+    }
+  };
+
+  // Resmi yükle
+  const handleImageUpload = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setUploadingImage(true);
+      const imageUrl = await uploadImage(selectedFile);
+      
+      setFormData({ ...formData, imageUrl });
+      addToast({
+            title: "Başarıyla yüklendi",
+            color: "success",
+            description: "Seçtiğiniz resim başarıyla yüklendi!",
+            timeout: 3000,
+            shouldShowTimeoutProgress: true,
+          });
+      
+      // Dosya seçimini temizle ama preview'ı koru
+      setSelectedFile(null);
+      
+    } catch (error: any) {
+      console.error('Resim yükleme hatası:', error);
+      addToast({
+            title: "Hata",
+            color: "danger",
+            description: error.message || "Resim yüklenirken bir hata oluştu.",
+            timeout: 3000,
+            shouldShowTimeoutProgress: true,
+          });
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -332,13 +577,66 @@ export default function AdminProductsPage() {
                 onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                 isRequired
               />
-              <Input
-                label="Resim URL"
-                placeholder="https://example.com/image.jpg"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                className="md:col-span-2"
-              />
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Ürün Resmi</label>
+                  
+                  {/* Resim Önizleme */}
+                  {(imagePreview || formData.imageUrl) && (
+                    <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                      <img
+                        src={imagePreview || formData.imageUrl}
+                        alt="Ürün resmi"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Dosya Seçme */}
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
+                    >
+                      Resim Seç
+                    </label>
+                    
+                    {selectedFile && (
+                      <Button
+                        size="sm"
+                        color="primary"
+                        onClick={handleImageUpload}
+                        isLoading={uploadingImage}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? 'Yükleniyor...' : 'Yükle'}
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Manuel URL Girişi */}
+                  <Input
+                    label="Veya resim URL'si girin"
+                    placeholder="/images/products/placeholder.jpg"
+                    value={formData.imageUrl || "/images/products/placeholder.jpg"}
+                    onChange={(e) => {
+                      setFormData({ ...formData, imageUrl: e.target.value });
+                      if (e.target.value) {
+                        setImagePreview("");
+                        setSelectedFile(null);
+                      }
+                    }}
+                    size="sm"
+                  />
+                </div>
+              </div>
               <div className="md:col-span-2">
                 <Input
                   label="Açıklama"
@@ -439,26 +737,40 @@ export default function AdminProductsPage() {
         ))}
       </div>
 
-      {/* Navigation */}
+      {/* Debug Info - Her zaman göster */}
+      <div className="bg-gray-100 p-4 rounded-lg text-sm">
+        <div>Admin Debug Bilgileri:</div>
+        <div>Toplam Ürün: {totalProducts}</div>
+        <div>Sayfa Boyutu: {pageSize}</div>
+        <div>Toplam Sayfa: {totalPages}</div>
+        <div>Mevcut Sayfa: {currentPage}</div>
+        <div>Ürün Sayısı: {products.length}</div>
+        <div>Seçili Kategori: {selectedCategory || "Tüm Kategoriler"}</div>
+        <div>Kategoriler yüklendi: {categories.length > 0 ? "Evet" : "Hayır"}</div>
+        {categories.length > 0 && (
+          <div>
+            Kategori Ürün Sayıları: {categories.map(cat => `${cat.name}: ${cat.productCount}`).join(", ")}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 pt-6">
-          <Button
-            variant="bordered"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            isDisabled={currentPage === 1}
-          >
-            Önceki
-          </Button>
-          <Chip variant="solid" color="primary">
-            {currentPage} / {totalPages}
-          </Chip>
-          <Button
-            variant="bordered"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            isDisabled={currentPage === totalPages}
-          >
-            Sonraki
-          </Button>
+        <div className="flex flex-col items-center gap-2 pt-6">
+          <div className="text-sm text-default-500">
+            Toplam {totalProducts} ürün • Sayfa {currentPage} / {totalPages}
+          </div>
+          <Pagination
+            total={totalPages}
+            page={currentPage}
+            onChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            showControls
+            showShadow
+            color="primary"
+          />
         </div>
       )}
 

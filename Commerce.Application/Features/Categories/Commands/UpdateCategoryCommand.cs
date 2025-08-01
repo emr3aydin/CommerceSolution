@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using Commerce.Domain;
+using MediatR;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +8,6 @@ using System.Threading.Tasks;
 
 namespace Commerce.Application.Features.Categories.Commands
 {
-    public record UpdateCategoryCommand(int Id, string Name, string Description, string ImageUrl, bool IsActive) : IRequest<int>;
+    public record UpdateCategoryCommand(int Id, string Name, string Description, string ImageUrl, bool IsActive) : IRequest<ApiResponse<int>>;
 
 }

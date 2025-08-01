@@ -5,16 +5,15 @@ export const apiConfig = {
     : 'https://localhost:7057',
   endpoints: {
     auth: {
-      login: '/api/auth/login',
-      register: '/api/auth/register',
-      me: '/api/auth/me',
-      initAdmin: '/api/auth/init-admin',
-      createAdmin: '/api/auth/create-admin',
+      login: '/api/Auth/login',
+      register: '/api/Auth/register',
+      me: '/api/Auth/me',
+      createAdmin: '/api/Auth/create-admin',
     },
-    products: '/api/products',
-    categories: '/api/categories',
-    orders: '/api/orders',
-    carts: '/api/carts',
+    products: '/api/Products',
+    categories: '/Categories',
+    orders: '/api/Orders',
+    carts: '/api/Carts',
   }
 };
 

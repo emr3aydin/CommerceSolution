@@ -2,10 +2,11 @@
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Products.Commands
 {
-    public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, int>
+    public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ApiResponse<int>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,21 +15,19 @@ namespace Commerce.Application.Features.Products.Commands
             _context = context;
         }
 
-        public async Task<int> Handle(CreateProductCommand request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<int>> Handle(CreateProductCommand request, CancellationToken cancellationToken) // Updated return type
         {
-            // Kategori var mı kontrol et
             var categoryExists = await _context.Categories
                 .AnyAsync(c => c.Id == request.CategoryId, cancellationToken);
 
             if (!categoryExists)
-                throw new ArgumentException("Belirtilen kategori bulunamadı.");
+                return ApiResponse<int>.ErrorResponse("Belirtilen kategori bulunamadı.");
 
-            // SKU benzersiz mi kontrol et
             var skuExists = await _context.Products
                 .AnyAsync(p => p.SKU == request.SKU, cancellationToken);
 
             if (skuExists)
-                throw new ArgumentException("Bu SKU zaten kullanımda.");
+                return ApiResponse<int>.ErrorResponse("Bu SKU zaten kullanımda.");
 
             var product = new Product
             {
@@ -46,7 +45,7 @@ namespace Commerce.Application.Features.Products.Commands
             _context.Products.Add(product);
             await _context.SaveChangesAsync(cancellationToken);
 
-            return product.Id;
+            return ApiResponse<int>.SuccessResponse(product.Id, "Ürün başarıyla oluşturuldu.");
         }
     }
 }

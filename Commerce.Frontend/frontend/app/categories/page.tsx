@@ -4,17 +4,11 @@ import { useEffect, useState } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
+import { Image } from "@heroui/image";
 import { TagIcon } from "@/components/icons";
 import { categoryAPI } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
-interface Category {
-  id: number;
-  name: string;
-  description: string;
-  isActive: boolean;
-  productCount?: number;
-}
+import { Category } from "@/types";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -28,8 +22,10 @@ export default function CategoriesPage() {
   const loadCategories = async () => {
     setLoading(true);
     try {
-      const response = await categoryAPI.getAll() as Category[];
-      setCategories(response);
+      const response = await categoryAPI.getAll();
+      if (response.success && response.data) {
+        setCategories(Array.isArray(response.data) ? response.data : []);
+      }
     } catch (error) {
       console.error("Kategoriler yüklenirken hata:", error);
     } finally {
@@ -63,17 +59,23 @@ export default function CategoriesPage() {
         {categories.map((category) => (
           <Card key={category.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary-100 rounded-lg">
-                  <TagIcon className="w-6 h-6 text-primary" />
-                </div>
+              <div className="flex items-center gap-3 w-full">
+                {category.imageUrl ? (
+                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                    <Image
+                      src={category.imageUrl}
+                      alt={category.name}
+                      className="w-full h-full object-cover"
+                      fallbackSrc="/placeholder-category.jpg"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-2 bg-primary-100 rounded-lg">
+                    <TagIcon className="w-6 h-6 text-primary" />
+                  </div>
+                )}
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{category.name}</h3>
-                  {category.productCount !== undefined && (
-                    <Chip size="sm" color="secondary" variant="flat">
-                      {category.productCount} ürün
-                    </Chip>
-                  )}
                 </div>
               </div>
             </CardHeader>

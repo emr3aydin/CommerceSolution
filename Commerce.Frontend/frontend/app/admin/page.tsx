@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Divider } from "@heroui/divider";
 import { Chip } from "@heroui/chip";
+import NextLink from "next/link";
 
 interface User {
   id: string;
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card as={NextLink} href="/admin/products" className="hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
             <h3 className="text-lg font-semibold">Ürün Yönetimi</h3>
           </CardHeader>
@@ -93,7 +94,7 @@ export default function AdminDashboard() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card as={NextLink} href="/admin/orders" className="hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
             <h3 className="text-lg font-semibold">Sipariş Yönetimi</h3>
           </CardHeader>
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
           </CardBody>
         </Card>
 
-        <Card>
+        <Card as={NextLink} href="/admin/categories" className="hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader className="pb-2">
             <h3 className="text-lg font-semibold">Kategori Yönetimi</h3>
           </CardHeader>

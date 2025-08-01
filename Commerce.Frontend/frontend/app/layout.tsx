@@ -10,7 +10,7 @@ import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
 
 // Navbar'ı doğrudan import et
-import { Navbar } from "@/components/navbar";
+import { TrendyolHeader } from "@/components/trendyol-header";
 import { AdminBar } from "@/components/admin-bar";
 
 export const metadata: Metadata = {
@@ -45,14 +45,14 @@ export default function RootLayout({
           fontSans.variable,
         )}
       >
-        <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative flex flex-col h-screen">
+        <Providers themeProps={{ attribute: "class", defaultTheme: "light" }}>
+          <div className="relative flex flex-col min-h-screen">
             <AdminBar />
-            <Navbar />
-            <main className="container mx-auto max-w-7xl pt-16 px-6 flex-grow">
+            <TrendyolHeader />
+            <main className="flex-grow">
               {children}
             </main>
-            <footer className="w-full flex items-center justify-center py-3">
+            <footer className="w-full flex items-center justify-center py-6 bg-gray-50 border-t">
               <Link
                 isExternal
                 className="flex items-center gap-1 text-current"

@@ -3,6 +3,8 @@ using Commerce.Application.Features.Products.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Commerce.Domain; 
+using Microsoft.AspNetCore.Http; 
 
 namespace Commerce.API.Controllers
 {
@@ -17,9 +19,6 @@ namespace Commerce.API.Controllers
             _mediator = mediator;
         }
 
-        /// <summary>
-        /// Tüm ürünleri listeler (filtreleme ve sayfalama ile)
-        /// </summary>
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAllProducts(
@@ -32,18 +31,20 @@ namespace Commerce.API.Controllers
             try
             {
                 var query = new GetAllProductsQuery(categoryId, isActive, searchTerm, pageNumber, pageSize);
-                var products = await _mediator.Send(query);
-                return Ok(products);
+                var result = await _mediator.Send(query);
+
+                if (!result.Success)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResponse(result.Message));
+                }
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürünler getirilirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResponse($"Ürünler getirilirken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// ID'ye göre tekil ürün getirir
-        /// </summary>
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetProductById(int id)
@@ -51,46 +52,44 @@ namespace Commerce.API.Controllers
             try
             {
                 if (id <= 0)
-                    return BadRequest(new { message = "Geçerli bir ürün ID'si giriniz." });
+                {
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir ürün ID'si giriniz."));
+                }
 
-                var product = await _mediator.Send(new GetProductByIdQuery(id));
-                
-                if (product == null)
-                    return NotFound(new { message = "Ürün bulunamadı." });
+                var result = await _mediator.Send(new GetProductByIdQuery(id));
 
-                return Ok(product);
+                if (!result.Success)
+                {
+                    return NotFound(ApiResponse.ErrorResponse(result.Message));
+                }
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürün getirilirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResponse($"Ürün getirilirken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Yeni ürün oluşturur (Sadece Admin)
-        /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateProduct([FromBody] CreateProductCommand command)
         {
             try
             {
-                var productId = await _mediator.Send(command);
-                return CreatedAtAction(nameof(GetProductById), new { id = productId }, new { id = productId });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
+                var result = await _mediator.Send(command);
+                if (!result.Success)
+                {
+                    return BadRequest(ApiResponse.ErrorResponse(result.Message));
+                }
+                return CreatedAtAction(nameof(GetProductById), new { id = result.Data }, result);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürün oluşturulurken bir hata oluştu.", error = ex.Message });
+                // This catch block will handle ArgumentException from the handler
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResponse($"Ürün oluşturulurken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Ürün günceller (Sadece Admin)
-        /// </summary>
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateProduct(int id, [FromBody] UpdateProductCommand command)
@@ -98,27 +97,28 @@ namespace Commerce.API.Controllers
             try
             {
                 if (id != command.Id)
-                    return BadRequest(new { message = "URL'deki ID ile komuttaki ID eşleşmiyor." });
+                {
+                    return BadRequest(ApiResponse.ErrorResponse("URL'deki ID ile komuttaki ID eşleşmiyor."));
+                }
 
                 var result = await _mediator.Send(command);
-                if (!result)
-                    return NotFound(new { message = "Ürün bulunamadı." });
-
-                return Ok(new { message = "Ürün başarıyla güncellendi." });
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
+                if (!result.Success)
+                {
+                    if (result.Message == "Ürün bulunamadı.") // Specific check for NotFound scenario
+                    {
+                        return NotFound(ApiResponse.ErrorResponse(result.Message));
+                    }
+                    return BadRequest(ApiResponse.ErrorResponse(result.Message));
+                }
+                return Ok(ApiResponse.SuccessResponse("Ürün başarıyla güncellendi."));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürün güncellenirken bir hata oluştu.", error = ex.Message });
+                // This catch block will handle ArgumentException from the handler
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResponse($"Ürün güncellenirken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Ürün siler (Sadece Admin)
-        /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteProduct(int id)
@@ -126,21 +126,26 @@ namespace Commerce.API.Controllers
             try
             {
                 if (id <= 0)
-                    return BadRequest(new { message = "Geçerli bir ürün ID'si giriniz." });
+                {
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir ürün ID'si giriniz."));
+                }
 
                 var result = await _mediator.Send(new DeleteProductCommand(id));
-                if (!result)
-                    return NotFound(new { message = "Ürün bulunamadı." });
-
-                return NoContent();
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { message = ex.Message });
+                if (!result.Success)
+                {
+                    if (result.Message == "Ürün bulunamadı.") // Specific check for NotFound scenario
+                    {
+                        return NotFound(ApiResponse.ErrorResponse(result.Message));
+                    }
+                    // For InvalidOperationException, it will now return a Conflict response
+                    return Conflict(ApiResponse.ErrorResponse(result.Message));
+                }
+                return NoContent(); // 204 No Content for successful deletion with no data to return
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Ürün silinirken bir hata oluştu.", error = ex.Message });
+                // This catch block will handle InvalidOperationException from the handler
+                return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.ErrorResponse($"Ürün silinirken bir hata oluştu: {ex.Message}"));
             }
         }
     }

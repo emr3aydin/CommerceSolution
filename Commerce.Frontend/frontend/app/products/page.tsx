@@ -1,24 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
-import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Chip } from "@heroui/chip";
-import { SearchIcon, ShoppingCartIcon } from "@/components/icons";
+import { ShoppingCartIcon } from "@/components/icons";
 import { productAPI, categoryAPI } from "@/lib/api";
+import { useCart } from "@/contexts/CartContext";
+import { addToast } from "@heroui/toast";
 import { Product, Category } from "@/types";
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 12;
+  const { addToCart } = useCart();
+
+  const searchTerm = searchParams.get('search') || '';
+
+  useEffect(() => {
+    // URL parametrelerinden kategori değerini al
+    const urlCategory = searchParams.get('category') || '';
+    setSelectedCategory(urlCategory);
+  }, [searchParams]);
 
   useEffect(() => {
     loadCategories();
@@ -30,8 +41,10 @@ export default function ProductsPage() {
 
   const loadCategories = async () => {
     try {
-      const response = await categoryAPI.getAll() as Category[];
-      setCategories(response);
+      const response = await categoryAPI.getAll();
+      if (response.success && response.data) {
+        setCategories(response.data as Category[]);
+      }
     } catch (error) {
       console.error("Kategoriler yüklenirken hata:", error);
     }
@@ -48,15 +61,21 @@ export default function ProductsPage() {
         ...(selectedCategory && selectedCategory !== "all" && { categoryId: parseInt(selectedCategory) })
       };
 
-      const response = await productAPI.getAll(params) as any;
+      const response = await productAPI.getAll(params);
       
-      // API'den dönen yapıyı kontrol et
-      if (response.items) {
-        setProducts(response.items);
-        setTotalPages(Math.ceil(response.totalCount / pageSize));
-      } else if (Array.isArray(response)) {
-        setProducts(response);
-        setTotalPages(1);
+      if (response.success && response.data) {
+        // API'den dönen yapıyı kontrol et
+        const data = response.data as any;
+        if (data.items) {
+          setProducts(data.items);
+          setTotalPages(Math.ceil(data.totalCount / pageSize));
+        } else if (Array.isArray(data)) {
+          setProducts(data);
+          setTotalPages(1);
+        } else {
+          setProducts([]);
+          setTotalPages(1);
+        }
       } else {
         setProducts([]);
         setTotalPages(1);
@@ -70,12 +89,9 @@ export default function ProductsPage() {
   };
 
   const handleAddToCart = async (productId: number) => {
-    try {
-      // Sepete ekleme işlemi burada yapılacak
-      console.log("Sepete eklendi:", productId);
-      // TODO: Cart API çağrısı
-    } catch (error) {
-      console.error("Sepete eklenirken hata:", error);
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      await addToCart(product, 1);
     }
   };
 
@@ -95,7 +111,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-8 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Ürünler</h1>
         <Chip color="primary" variant="flat">
@@ -103,18 +119,9 @@ export default function ProductsPage() {
         </Chip>
       </div>
 
-      {/* Filtreler */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Ürün ara..."
-            startContent={<SearchIcon className="w-4 h-4" />}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-md"
-          />
-        </div>
-        <div className="w-full lg:w-64">
+      {/* Sadece Kategori Filtresi */}
+      <div className="flex justify-end">
+        <div className="w-full max-w-xs">
           <Select
             placeholder="Kategori seçin"
             selectedKeys={selectedCategory ? [selectedCategory] : []}
@@ -122,15 +129,13 @@ export default function ProductsPage() {
               const selected = Array.from(keys)[0] as string;
               setSelectedCategory(selected);
             }}
+            items={[{ id: "all", name: "Tüm Kategoriler" }, ...categories]}
           >
-            <SelectItem key="all">
-              Tüm Kategoriler
-            </SelectItem>
-            {categories.map((category) => (
+            {(category) => (
               <SelectItem key={category.id.toString()}>
                 {category.name}
               </SelectItem>
-            ))}
+            )}
           </Select>
         </div>
       </div>

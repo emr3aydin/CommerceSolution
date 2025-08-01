@@ -9,6 +9,7 @@ import { Chip } from "@heroui/chip";
 import { Switch } from "@heroui/switch";
 import { SearchIcon } from "@/components/icons";
 import { categoryAPI } from "@/lib/api";
+import { uploadImage, getImagePreview } from "@/lib/imageUpload";
 import { Category } from "@/types";
 
 interface User {
@@ -36,6 +37,11 @@ export default function AdminCategoriesPage() {
     imageUrl: "",
     isActive: true
   });
+
+  // Resim yükleme state'leri
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -66,17 +72,19 @@ export default function AdminCategoriesPage() {
   const loadCategories = async () => {
     setLoading(true);
     try {
-      const response = await categoryAPI.getAll() as Category[];
-      let filteredCategories = response;
-      
-      if (searchTerm) {
-        filteredCategories = response.filter(category =>
-          category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
+      const response = await categoryAPI.getAll();
+      if (response.success && response.data && Array.isArray(response.data)) {
+        let filteredCategories = response.data;
+        
+        if (searchTerm) {
+          filteredCategories = response.data.filter(category =>
+            category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
+          );
+        }
+        
+        setCategories(filteredCategories);
       }
-      
-      setCategories(filteredCategories);
     } catch (error) {
       console.error("Kategoriler yüklenirken hata:", error);
       setCategories([]);
@@ -99,11 +107,15 @@ export default function AdminCategoriesPage() {
         isActive: formData.isActive
       };
 
-      await categoryAPI.create(categoryData);
-      setShowCreateForm(false);
-      resetForm();
-      loadCategories();
-      alert("Kategori başarıyla oluşturuldu!");
+      const response = await categoryAPI.create(categoryData);
+      if (response.success) {
+        setShowCreateForm(false);
+        resetForm();
+        loadCategories();
+        alert(response.message || "Kategori başarıyla oluşturuldu!");
+      } else {
+        alert(response.message || "Kategori oluşturulurken bir hata oluştu.");
+      }
     } catch (error) {
       console.error("Kategori oluşturulurken hata:", error);
       alert("Kategori oluşturulurken bir hata oluştu.");
@@ -125,12 +137,16 @@ export default function AdminCategoriesPage() {
         isActive: formData.isActive
       };
 
-      await categoryAPI.update(categoryData);
-      setEditingCategory(null);
-      resetForm();
-      setShowCreateForm(false);
-      loadCategories();
-      alert("Kategori başarıyla güncellendi!");
+      const response = await categoryAPI.update(categoryData);
+      if (response.success) {
+        setEditingCategory(null);
+        resetForm();
+        setShowCreateForm(false);
+        loadCategories();
+        alert(response.message || "Kategori başarıyla güncellendi!");
+      } else {
+        alert(response.message || "Kategori güncellenirken bir hata oluştu.");
+      }
     } catch (error) {
       console.error("Kategori güncellenirken hata:", error);
       alert("Kategori güncellenirken bir hata oluştu.");
@@ -140,9 +156,13 @@ export default function AdminCategoriesPage() {
   const handleDeleteCategory = async (categoryId: number) => {
     if (confirm("Bu kategoriyi silmek istediğinizden emin misiniz?")) {
       try {
-        await categoryAPI.delete(categoryId);
-        loadCategories();
-        alert("Kategori başarıyla silindi!");
+        const response = await categoryAPI.delete(categoryId);
+        if (response.success) {
+          loadCategories();
+          alert(response.message || "Kategori başarıyla silindi!");
+        } else {
+          alert(response.message || "Kategori silinirken bir hata oluştu.");
+        }
       } catch (error) {
         console.error("Kategori silinirken hata:", error);
         alert("Kategori silinirken bir hata oluştu. Bu kategoriye ait ürünler olabilir.");
@@ -155,10 +175,15 @@ export default function AdminCategoriesPage() {
     setFormData({
       name: category.name,
       description: category.description || "",
-      imageUrl: "",
+      imageUrl: category.imageUrl || "",
       isActive: category.isActive
     });
     setShowCreateForm(true);
+    // Mevcut resim varsa önizleme olarak göster
+    if (category.imageUrl) {
+      setImagePreview("");
+      setSelectedFile(null);
+    }
   };
 
   const resetForm = () => {
@@ -169,6 +194,61 @@ export default function AdminCategoriesPage() {
       isActive: true
     });
     setEditingCategory(null);
+    setSelectedFile(null);
+    setImagePreview("");
+    setUploadingImage(false);
+  };
+
+  // Resim dosyası seçildiğinde
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Dosya boyutu kontrolü (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Dosya boyutu 5MB\'dan büyük olamaz');
+        return;
+      }
+
+      // Dosya tipi kontrolü
+      if (!file.type.startsWith('image/')) {
+        alert('Sadece resim dosyaları yüklenebilir');
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Önizleme oluştur
+      const preview = await getImagePreview(file);
+      setImagePreview(preview);
+
+    } catch (error) {
+      console.error('Dosya seçim hatası:', error);
+      alert('Dosya seçilirken hata oluştu');
+    }
+  };
+
+  // Resmi yükle
+  const handleImageUpload = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setUploadingImage(true);
+      const imageUrl = await uploadImage(selectedFile);
+      
+      setFormData({ ...formData, imageUrl });
+      alert('Resim başarıyla yüklendi!');
+      
+      // Dosya seçimini temizle ama preview'ı koru
+      setSelectedFile(null);
+      
+    } catch (error: any) {
+      console.error('Resim yükleme hatası:', error);
+      alert(error.message || 'Resim yüklenirken hata oluştu');
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   if (!user) {
@@ -233,12 +313,66 @@ export default function AdminCategoriesPage() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 isRequired
               />
-              <Input
-                label="Resim URL"
-                placeholder="https://example.com/image.jpg"
-                value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-              />
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium">Kategori Resmi</label>
+                  
+                  {/* Resim Önizleme */}
+                  {(imagePreview || formData.imageUrl) && (
+                    <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                      <img
+                        src={imagePreview || formData.imageUrl}
+                        alt="Kategori resmi"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Dosya Seçme */}
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      id="category-image-upload"
+                    />
+                    <label
+                      htmlFor="category-image-upload"
+                      className="cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
+                    >
+                      Resim Seç
+                    </label>
+                    
+                    {selectedFile && (
+                      <Button
+                        size="sm"
+                        color="primary"
+                        onClick={handleImageUpload}
+                        isLoading={uploadingImage}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? 'Yükleniyor...' : 'Yükle'}
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Manuel URL Girişi */}
+                  <Input
+                    label="Veya resim URL'si girin"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.imageUrl}
+                    onChange={(e) => {
+                      setFormData({ ...formData, imageUrl: e.target.value });
+                      if (e.target.value) {
+                        setImagePreview("");
+                        setSelectedFile(null);
+                      }
+                    }}
+                    size="sm"
+                  />
+                </div>
+              </div>
               <div className="md:col-span-2">
                 <Input
                   label="Açıklama"
@@ -282,10 +416,20 @@ export default function AdminCategoriesPage() {
         {categories.map((category) => (
           <Card key={category.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2">
-              <div className="w-full h-32 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary">
-                  {category.name.charAt(0).toUpperCase()}
-                </span>
+              <div className="w-full h-32 rounded-lg flex items-center justify-center overflow-hidden">
+                {category.imageUrl ? (
+                  <img
+                    src={category.imageUrl}
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-primary">
+                      {category.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardBody className="pt-0">

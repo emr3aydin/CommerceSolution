@@ -2,10 +2,11 @@ using Commerce.Application.Features.Products.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Products.Queries
 {
-    public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, ProductDto?>
+    public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, ApiResponse<ProductDto?>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,7 +15,7 @@ namespace Commerce.Application.Features.Products.Queries
             _context = context;
         }
 
-        public async Task<ProductDto?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<ProductDto?>> Handle(GetProductByIdQuery request, CancellationToken cancellationToken) // Updated return type
         {
             var product = await _context.Products
                 .Include(p => p.Category)
@@ -35,7 +36,10 @@ namespace Commerce.Application.Features.Products.Queries
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
-            return product;
+            if (product == null)
+                return ApiResponse<ProductDto?>.ErrorResponse("Ürün bulunamadý veya aktif deðil.");
+
+            return ApiResponse<ProductDto?>.SuccessResponse(product);
         }
     }
 }

@@ -1,4 +1,5 @@
 using MediatR;
+using Commerce.Domain;
 
 namespace Commerce.Application.Features.Products.Commands
 {
@@ -12,5 +13,5 @@ namespace Commerce.Application.Features.Products.Commands
         string SKU,
         int CategoryId,
         bool IsActive
-    ) : IRequest<bool>;
+    ) : IRequest<ApiResponse<bool>>;
 }

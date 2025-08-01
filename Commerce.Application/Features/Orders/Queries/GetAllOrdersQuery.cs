@@ -1,5 +1,6 @@
 using Commerce.Application.Features.Orders.DTOs;
 using MediatR;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Orders.Queries
 {
@@ -8,5 +9,5 @@ namespace Commerce.Application.Features.Orders.Queries
         string? Status = null,
         int PageNumber = 1,
         int PageSize = 10
-    ) : IRequest<IEnumerable<OrderDto>>;
+    ) : IRequest<ApiResponse<IEnumerable<OrderDto>>>; // Changed return type to ApiResponse<IEnumerable<OrderDto>>
 }

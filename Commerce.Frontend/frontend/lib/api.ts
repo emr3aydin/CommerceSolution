@@ -1,4 +1,17 @@
 // API konfigürasyonu ve utility fonksiyonları
+import { 
+  RegisterDto, 
+  LoginDto, 
+  CreateAdminDto, 
+  AddToCartRequest, 
+  CreateCategoryCommand,
+  UpdateCategoryCommand,
+  CreateProductCommand,
+  UpdateProductCommand,
+  CreateOrderCommand,
+  UpdateOrderStatusRequest,
+  ApiResponse
+} from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
 
@@ -6,7 +19,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057'
 export const apiClient = {
     baseURL: API_BASE_URL,
 
-    async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
         const url = `${this.baseURL}${endpoint}`;
 
         const defaultHeaders: Record<string, string> = {
@@ -33,28 +46,55 @@ export const apiClient = {
             const response = await fetch(url, config);
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+                let errorMessage;
+                try {
+                    // Response'ı kopyalayalım ki hem JSON hem text denemesi yapabilelim
+                    const responseClone = response.clone();
+                    const errorData = await responseClone.json();
+                    errorMessage = errorData.message || `API Error: ${response.status} ${response.statusText}`;
+                } catch {
+                    try {
+                        const errorText = await response.text();
+                        errorMessage = errorText || `API Error: ${response.status} ${response.statusText}`;
+                    } catch {
+                        errorMessage = `API Error: ${response.status} ${response.statusText}`;
+                    }
+                }
+                throw new Error(errorMessage);
             }
 
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 return await response.json();
             } else {
-                const text = await response.text();
-                throw new Error(`Expected JSON response but got: ${text}`);
+                // Non-JSON response için default success response
+                return {
+                    success: true,
+                    message: 'Operation successful',
+                    data: {} as T
+                };
             }
         } catch (error) {
-            console.error('API Request Error:', error);
+            console.error('API Request Error:', {
+                url,
+                method: config.method || 'GET',
+                error: error instanceof Error ? error.message : error
+            });
+            
+            // Network error vs API error ayırımı
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+                throw new Error('Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.');
+            }
+            
             throw error;
         }
     },
 
-    get<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    get<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
         return this.request<T>(endpoint, { ...options, method: 'GET' });
     },
 
-    post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
         return this.request<T>(endpoint, {
             ...options,
             method: 'POST',
@@ -62,7 +102,7 @@ export const apiClient = {
         });
     },
 
-    put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
+    put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
         return this.request<T>(endpoint, {
             ...options,
             method: 'PUT',
@@ -70,8 +110,16 @@ export const apiClient = {
         });
     },
 
-    delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    delete<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
         return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+    },
+
+    patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
+        return this.request<T>(endpoint, {
+            ...options,
+            method: 'PATCH',
+            body: data ? JSON.stringify(data) : undefined,
+        });
     },
 };
 
@@ -92,100 +140,65 @@ export const productAPI = {
         if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
 
         const queryString = query.toString();
-        return apiClient.get(`/api/products${queryString ? `?${queryString}` : ''}`);
+        return apiClient.get(`/api/Products${queryString ? `?${queryString}` : ''}`);
     },
 
     async getById(id: number) {
-        return apiClient.get(`/api/products/${id}`);
+        return apiClient.get(`/api/Products/${id}`);
     },
 
-    async create(productData: {
-        name: string;
-        description?: string;
-        price: number;
-        stock: number;
-        imageUrl: string;
-        sku: string;
-        categoryId: number;
-        isActive: boolean;
-    }) {
-        return apiClient.post('/api/products', productData);
+    async create(productData: CreateProductCommand) {
+        return apiClient.post('/api/Products', productData);
     },
 
-    async update(id: number, productData: {
-        id: number;
-        name: string;
-        description?: string;
-        price: number;
-        stock: number;
-        imageUrl: string;
-        sku: string;
-        categoryId: number;
-        isActive: boolean;
-    }) {
-        return apiClient.put(`/api/products/${id}`, productData);
+    async update(id: number, productData: UpdateProductCommand) {
+        return apiClient.put(`/api/Products/${id}`, productData);
     },
 
     async delete(id: number) {
-        return apiClient.delete(`/api/products/${id}`);
+        return apiClient.delete(`/api/Products/${id}`);
     },
 };
 
 // Category API fonksiyonları
 export const categoryAPI = {
     async getAll() {
-        return apiClient.get('/categories/getAll');
+        return apiClient.get('/Categories/getAll');
     },
 
     async getById(id: number) {
-        return apiClient.get(`/categories/${id}`);
+        return apiClient.get(`/Categories/${id}`);
     },
 
-    async create(categoryData: {
-        name: string;
-        description: string;
-        imageUrl: string;
-        isActive: boolean;
-    }) {
-        return apiClient.post('/categories/new', categoryData);
+    async create(categoryData: CreateCategoryCommand) {
+        return apiClient.post('/Categories/new', categoryData);
     },
 
-    async update(categoryData: {
-        id: number;
-        name: string;
-        description: string;
-        imageUrl: string;
-        isActive: boolean;
-    }) {
-        return apiClient.post('/categories/update', categoryData);
+    async update(categoryData: UpdateCategoryCommand) {
+        return apiClient.post('/Categories/update', categoryData);
     },
 
     async delete(id: number) {
-        return apiClient.delete(`/categories/${id}`);
+        return apiClient.delete(`/Categories/${id}`);
     },
 };
 
 // Auth API fonksiyonları
 export const authAPI = {
-    async login(email: string, password: string) {
-        return apiClient.post('/api/auth/login', { email, password });
+    async login(credentials: LoginDto) {
+        return apiClient.post('/api/Auth/login', credentials);
     },
 
-    async register(userData: {
-        email: string;
-        username: string;
-        password: string;
-        firstName: string;
-        lastName: string;
-        dateOfBirth: string;
-        gender: string;
-        phoneNumber: string;
-    }) {
-        return apiClient.post('/api/auth/register', userData);
+    async register(userData: RegisterDto) {
+        return apiClient.post('/api/Auth/register', userData);
+    },
+
+    async createAdmin(adminData: CreateAdminDto) {
+        return apiClient.post('/api/Auth/create-admin', adminData);
     },
 
     async getCurrentUser() {
-        return apiClient.get('/api/auth/me');
+        return apiClient.get('/api/Auth/me');
     },
 
     async logout() {
@@ -199,18 +212,47 @@ export const authAPI = {
 // Cart API fonksiyonları
 export const cartAPI = {
     async getCart() {
-        return apiClient.get('/api/carts');
+        return apiClient.get('/api/Carts');
     },
 
-    async addToCart(productId: number, quantity: number) {
-        return apiClient.post('/api/carts/add', { productId, quantity });
-    },
-
-    async updateCart(cartItemId: number, quantity: number) {
-        return apiClient.put(`/api/carts/update/${cartItemId}`, { quantity });
+    async addToCart(request: AddToCartRequest) {
+        return apiClient.post('/api/Carts/add', request);
     },
 
     async removeFromCart(cartItemId: number) {
-        return apiClient.delete(`/api/carts/remove/${cartItemId}`);
+        return apiClient.delete(`/api/Carts/remove/${cartItemId}`);
+    },
+
+    async clearCart() {
+        return apiClient.delete('/api/Carts/clear');
+    },
+};
+
+// Orders API fonksiyonları
+export const orderAPI = {
+    async getAll(params?: {
+        status?: string;
+        pageNumber?: number;
+        pageSize?: number;
+    }) {
+        const query = new URLSearchParams();
+        if (params?.status) query.append('status', params.status);
+        if (params?.pageNumber) query.append('pageNumber', params.pageNumber.toString());
+        if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+
+        const queryString = query.toString();
+        return apiClient.get(`/api/Orders${queryString ? `?${queryString}` : ''}`);
+    },
+
+    async getById(id: number) {
+        return apiClient.get(`/api/Orders/${id}`);
+    },
+
+    async create(orderData: CreateOrderCommand) {
+        return apiClient.post('/api/Orders', orderData);
+    },
+
+    async updateStatus(id: number, statusRequest: UpdateOrderStatusRequest) {
+        return apiClient.patch(`/api/Orders/${id}/status`, statusRequest);
     },
 };

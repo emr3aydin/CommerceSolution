@@ -2,10 +2,11 @@ using Commerce.Application.Features.Orders.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Orders.Queries
 {
-    public class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery, IEnumerable<OrderDto>>
+    public class GetAllOrdersQueryHandler : IRequestHandler<GetAllOrdersQuery, ApiResponse<IEnumerable<OrderDto>>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,7 +15,7 @@ namespace Commerce.Application.Features.Orders.Queries
             _context = context;
         }
 
-        public async Task<IEnumerable<OrderDto>> Handle(GetAllOrdersQuery request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<IEnumerable<OrderDto>>> Handle(GetAllOrdersQuery request, CancellationToken cancellationToken) // Updated return type
         {
             var query = _context.Orders
                 .Include(o => o.User)
@@ -22,14 +23,12 @@ namespace Commerce.Application.Features.Orders.Queries
                     .ThenInclude(oi => oi.Product)
                 .AsQueryable();
 
-            // Filtreleme
             if (request.UserId.HasValue)
                 query = query.Where(o => o.UserId == request.UserId.Value);
 
             if (!string.IsNullOrEmpty(request.Status))
                 query = query.Where(o => o.Status == request.Status);
 
-            // Sayfalama ve sıralama
             var orders = await query
                 .OrderByDescending(o => o.OrderDate)
                 .Skip((request.PageNumber - 1) * request.PageSize)
@@ -58,7 +57,7 @@ namespace Commerce.Application.Features.Orders.Queries
                 })
                 .ToListAsync(cancellationToken);
 
-            return orders;
+            return ApiResponse<IEnumerable<OrderDto>>.SuccessResponse(orders);
         }
     }
 }
