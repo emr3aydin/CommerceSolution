@@ -5,7 +5,6 @@ import { Card, CardBody, CardFooter } from "@heroui/card";
 import { Image } from "@heroui/image";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
-import { Pagination } from "@heroui/pagination";
 import { productAPI, categoryAPI } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { Product, Category, PaginatedProductsResponse } from "@/types";
@@ -17,14 +16,15 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const { addToCart } = useCart();
-  
+
   const pageSize = 12;
 
   useEffect(() => {
     loadCategories();
     loadInitialData();
-  }, [currentPage]);
+  }, [currentPage, selectedCategory]);
 
   const loadCategories = async () => {
     try {
@@ -43,22 +43,23 @@ export default function Home() {
     try {
       setLoading(true);
       console.log('LoadInitialData - Starting to load products for page:', currentPage);
-      
-      const productsResponse = await productAPI.getAll({ 
-        pageSize: pageSize, 
+
+      const productsResponse = await productAPI.getAll({
+        pageSize: pageSize,
         pageNumber: currentPage,
-        isActive: true 
+        isActive: true,
+        categoryId: selectedCategory || undefined
       });
       console.log('LoadInitialData - Products API response:', productsResponse);
-      
+
       if (productsResponse.success && productsResponse.data) {
         const paginatedData = productsResponse.data as PaginatedProductsResponse;
         console.log('LoadInitialData - Paginated data:', paginatedData);
-        
+
         setProducts(paginatedData.data || []);
         setTotalProducts(paginatedData.totalCount);
         setTotalPages(paginatedData.totalPages);
-        
+
         console.log("Ana sayfa - Backend'den pagination:", {
           itemsCount: paginatedData.data?.length || 0,
           totalCount: paginatedData.totalCount,
@@ -97,6 +98,11 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCategoryChange = (categoryId: number | null) => {
+    setSelectedCategory(categoryId);
+    setCurrentPage(1); // Reset sayfa numarasını
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -119,15 +125,46 @@ export default function Home() {
 
       {/* Ürünler Section */}
       <section className="container mx-auto px-4 py-8">
+        {/* Kategori Filtreleri */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3">Kategoriler</h3>
+          <div className="flex flex-wrap gap-2">
+            <Chip
+              color={selectedCategory === null ? "primary" : "default"}
+              variant={selectedCategory === null ? "solid" : "flat"}
+              className="cursor-pointer"
+              onClick={() => handleCategoryChange(null)}
+            >
+              Tüm Ürünler
+            </Chip>
+            {categories.map((category) => (
+              <Chip
+                key={category.id}
+                color={selectedCategory === category.id ? "primary" : "default"}
+                variant={selectedCategory === category.id ? "solid" : "flat"}
+                className="cursor-pointer"
+                onClick={() => handleCategoryChange(category.id)}
+              >
+                {category.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Öne Çıkan Ürünler</h2>
+          <h2 className="text-2xl font-bold">
+            {selectedCategory === null
+              ? "Öne Çıkan Ürünler"
+              : `${categories.find(c => c.id === selectedCategory)?.name || "Seçili Kategori"} Ürünleri`
+            }
+          </h2>
           {totalProducts > 0 && (
             <Chip color="primary" variant="flat">
               {totalProducts} ürün
             </Chip>
           )}
         </div>
-        
+
         {products.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg">
             <p className="text-lg text-gray-500">Henüz ürün bulunmuyor.</p>
@@ -150,7 +187,7 @@ export default function Home() {
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                       {product.description}
                     </p>
-                    
+
                     <div className="flex justify-between items-center w-full mb-3">
                       <span className="text-xl font-bold text-orange-500">
                         {formatPrice(product.price)}
@@ -159,7 +196,7 @@ export default function Home() {
                         {product.stock > 0 ? `${product.stock} adet` : "Stokta yok"}
                       </Chip>
                     </div>
-                    
+
                     <Button
                       color="primary"
                       className="w-full bg-orange-500 hover:bg-orange-600"
@@ -172,7 +209,7 @@ export default function Home() {
                 </Card>
               ))}
             </div>
-            
+
             {/* Debug Info - Her zaman göster */}
             <div className="bg-gray-100 p-4 rounded-lg text-sm mb-6">
               <div>Ana Sayfa Debug Bilgileri:</div>
@@ -188,21 +225,36 @@ export default function Home() {
                 </div>
               )}
             </div>
-            
+
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex flex-col items-center gap-2 mt-8">
                 <div className="text-sm text-default-500">
                   Toplam {totalProducts} ürün • Sayfa {currentPage} / {totalPages}
                 </div>
-                <Pagination
-                  total={totalPages}
-                  page={currentPage}
-                  onChange={handlePageChange}
-                  showControls
-                  showShadow
-                  color="primary"
-                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    isDisabled={currentPage === 1}
+                    onPress={() => handlePageChange(currentPage - 1)}
+                  >
+                    Önceki
+                  </Button>
+
+                  <span className="text-sm text-gray-700 px-4">
+                    Sayfa {currentPage} / {totalPages}
+                  </span>
+
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    isDisabled={currentPage === totalPages}
+                    onPress={() => handlePageChange(currentPage + 1)}
+                  >
+                    Sonraki
+                  </Button>
+                </div>
               </div>
             )}
           </>
