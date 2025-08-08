@@ -9,8 +9,7 @@ import { Chip } from "@heroui/chip";
 import { ShoppingCartIcon } from "@/components/icons";
 import { productAPI, categoryAPI } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
-import { addToast } from "@heroui/toast";
-import { Product, Category } from "@/types";
+import { Product, Category, PaginatedProductsResponse } from "@/types";
 
 export default function ProductsPage() {
   const searchParams = useSearchParams();
@@ -28,6 +27,7 @@ export default function ProductsPage() {
   useEffect(() => {
     // URL parametrelerinden kategori değerini al
     const urlCategory = searchParams.get('category') || '';
+    console.log('Products page - URL category parameter:', urlCategory);
     setSelectedCategory(urlCategory);
   }, [searchParams]);
 
@@ -53,36 +53,46 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const params = {
+      const params: any = {
         pageNumber: currentPage,
         pageSize: pageSize,
-        isActive: true,
-        ...(searchTerm && { searchTerm }),
-        ...(selectedCategory && selectedCategory !== "all" && { categoryId: parseInt(selectedCategory) })
+        isActive: true
       };
 
-      const response = await productAPI.getAll(params);
-      
-      if (response.success && response.data) {
-        // API'den dönen yapıyı kontrol et
-        const data = response.data as any;
-        if (data.items) {
-          setProducts(data.items);
-          setTotalPages(Math.ceil(data.totalCount / pageSize));
-        } else if (Array.isArray(data)) {
-          setProducts(data);
-          setTotalPages(1);
-        } else {
-          setProducts([]);
-          setTotalPages(1);
+      if (searchTerm) {
+        params.searchTerm = searchTerm;
+      }
+
+      if (selectedCategory && selectedCategory !== "all" && selectedCategory !== "") {
+        const categoryId = parseInt(selectedCategory);
+        if (categoryId > 0) {
+          params.categoryId = categoryId;
         }
+      }
+
+      console.log("Products page - API params:", params);
+      const response = await productAPI.getAll(params);
+      console.log("Products page - API response:", response);
+
+      if (response.success && response.data) {
+        const paginatedData = response.data as PaginatedProductsResponse;
+        setProducts(paginatedData.data || []);
+        setTotalPages(paginatedData.totalPages);
+
+        console.log("Products page - Loaded products:", {
+          count: paginatedData.data?.length || 0,
+          totalPages: paginatedData.totalPages,
+          totalCount: paginatedData.totalCount
+        });
       } else {
+        console.error("Products page - API error:", response.message);
         setProducts([]);
         setTotalPages(1);
       }
     } catch (error) {
       console.error("Ürünler yüklenirken hata:", error);
       setProducts([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -127,15 +137,16 @@ export default function ProductsPage() {
             selectedKeys={selectedCategory ? [selectedCategory] : []}
             onSelectionChange={(keys) => {
               const selected = Array.from(keys)[0] as string;
+              console.log('Products page - Category selection changed:', selected);
               setSelectedCategory(selected);
             }}
-            items={[{ id: "all", name: "Tüm Kategoriler" }, ...categories]}
           >
-            {(category) => (
+            <SelectItem key="all">Tüm Kategoriler</SelectItem>
+            {categories.map((category) => (
               <SelectItem key={category.id.toString()}>
                 {category.name}
               </SelectItem>
-            )}
+            ))}
           </Select>
         </div>
       </div>
@@ -165,7 +176,7 @@ export default function ProductsPage() {
                 <p className="text-small text-default-500 line-clamp-2">
                   {product.description}
                 </p>
-                
+
                 <div className="flex justify-between items-center">
                   <Chip size="sm" color="secondary" variant="flat">
                     {product.categoryName}
