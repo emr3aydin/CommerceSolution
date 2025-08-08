@@ -23,8 +23,7 @@ namespace Commerce.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCart()
         {
-            try
-            {
+            
                 var userId = GetCurrentUserId();
                 var cart = await _mediator.Send(new GetCartByUserIdQuery(userId));
 
@@ -32,22 +31,13 @@ namespace Commerce.API.Controllers
                     return Ok(ApiResponse<object>.SuccessNoData("Sepet boş."));
 
                 return Ok(cart);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Sepet getirilirken bir hata oluştu: {ex.Message}"));
-            }
+           
         }
 
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
         {
-            try
-            {
+            
                 var userId = GetCurrentUserId();
                 var command = new AddToCartCommand(userId, request.ProductId, request.Quantity);
 
@@ -56,26 +46,14 @@ namespace Commerce.API.Controllers
                     return BadRequest(ApiResponse.ErrorResponse(result.Message));
 
                 return Ok(ApiResponse.SuccessResponse(result.Message));
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Ürün sepete eklenirken bir hata oluştu: {ex.Message} {ex.InnerException}"));
-            }
+            
+            
         }
 
         [HttpDelete("remove/{cartItemId}")]
         public async Task<IActionResult> RemoveFromCart(int cartItemId)
         {
-            try
-            {
+            
                 if (cartItemId <= 0)
                     return BadRequest(ApiResponse.ErrorResponse("Geçerli bir sepet öğesi ID'si giriniz."));
 
@@ -87,22 +65,13 @@ namespace Commerce.API.Controllers
                     return NotFound(ApiResponse.ErrorResponse("Sepet öğesi bulunamadı."));
 
                 return Ok(ApiResponse.SuccessResponse("Ürün sepetten başarıyla çıkarıldı."));
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Ürün sepetten çıkarılırken bir hata oluştu: {ex.Message}"));
-            }
+            
         }
 
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearCart()
         {
-            try
-            {
+            
                 var userId = GetCurrentUserId();
                 var command = new ClearCartCommand(userId);
                 var result = await _mediator.Send(command);
@@ -113,15 +82,7 @@ namespace Commerce.API.Controllers
                 }
 
                 return Ok(ApiResponse.SuccessResponse("Sepet başarıyla temizlendi."));
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Sepet temizlenirken bir hata oluştu: {ex.Message}"));
-            }
+            
         }
 
         private Guid GetCurrentUserId()

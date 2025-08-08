@@ -177,7 +177,7 @@ export default function Home() {
                     <Image
                       src={product.imageUrl || "/placeholder.jpg"}
                       alt={product.name}
-                      className="w-full object-cover h-[400px] w-[400px] rounded-t-lg"
+                      className="w-full object-cover h-[400px] w-[400px] rounded-t-lg "
                       fallbackSrc="/placeholder.jpg"
                     />
                   </CardBody>

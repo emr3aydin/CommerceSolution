@@ -65,11 +65,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('RefreshCart - API response:', response);
         
         if (response.success && response.data) {
-          const cart = response.data as BackendCart; // Backend cart yapısı
+          const cart = response.data as BackendCart; 
           console.log('RefreshCart - Cart object:', cart);
           console.log('RefreshCart - Cart items (cartItems):', cart.cartItems);
           
-          // Backend'den gelen cartItems'ı bizim CartItem formatına çevir
           if (cart && cart.cartItems && Array.isArray(cart.cartItems)) {
             const cartItems: CartItem[] = cart.cartItems.map((item) => ({
               id: `${item.id}`,
@@ -78,13 +77,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: item.productName,
                 price: item.unitPrice,
                 imageUrl: item.productImageUrl,
-                description: '', // Backend'de description yok, boş bırakıyoruz
-                stock: 999, // Backend'de stock bilgisi yok, default değer
-                categoryId: 0, // Backend'de categoryId yok, default değer
+                description: '', 
+                stock: 999, 
+                categoryId: 0, 
                 category: null,
                 sku: '',
                 isActive: true,
-                createdAt: new Date().toISOString() // Required alan, default değer
+                createdAt: new Date().toISOString() 
               },
               quantity: item.quantity,
               price: item.unitPrice
@@ -199,7 +198,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('authToken');
       
       if (token) {
-        // Backend'den kaldır
         const item = items.find(item => item.product.id === productId);
         if (item && !item.id.startsWith('local-')) {
           const response = await cartAPI.removeFromCart(parseInt(item.id));
@@ -258,7 +256,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('authToken');
       
       if (token) {
-        // Backend'de güncelle - önce kaldır sonra ekle
         const item = items.find(item => item.product.id === productId);
         if (item && !item.id.startsWith('local-')) {
           await cartAPI.removeFromCart(parseInt(item.id));
@@ -269,7 +266,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await refreshCart();
         }
       } else {
-        // Local storage'da güncelle
         setItems(prevItems => {
           const newItems = prevItems.map(item =>
             item.product.id === productId

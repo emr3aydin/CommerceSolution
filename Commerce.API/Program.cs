@@ -12,7 +12,7 @@ using AutoMapper;
 using Commerce.Application.Common.Mappings;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddDbContext<LogDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails(); 
 builder.Services.AddAutoMapper(cfg => { },typeof(MappingProfile));

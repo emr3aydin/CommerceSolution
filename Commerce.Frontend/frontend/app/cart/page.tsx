@@ -11,8 +11,9 @@ import NextLink from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { addToast } from '@heroui/toast';
 import { ShoppingCartIcon, TrashIcon } from '@/components/icons';
-import { orderAPI, authAPI } from '@/lib/api';
+import { orderAPI, authAPI, productAPI, cartAPI } from '@/lib/api';
 import { CreateOrderCommand } from '@/types';
+import { toast } from '@heroui/theme';
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, getTotalPrice, getTotalItems, clearCart } = useCart();
@@ -54,7 +55,76 @@ export default function CartPage() {
     }
   };
 
-  const handleCheckout = () => {
+  const  handleCheckout = async () => {
+    if(items.length>0) {
+      for (const item of items) {
+        // Stok kontrolü yap
+          try {
+            const productResponse = await productAPI.getById(item.product.id);
+            if (!productResponse.success || !productResponse.data) {
+              throw new Error(`Ürün bilgisi alınamadı: ${item.product.name}`);
+            }
+            const productData = productResponse.data;
+            // Stok kontrolü
+            if (productData.stock < item.quantity) {
+              if (productData.stock <= 0) {
+                addToast({
+                  title: "Stok Tükendi",
+                  description: `${item.product.name} ürünü stokta kalmadı!`,
+                  timeout: 3000,
+                  shouldShowTimeoutProgress: true,
+                });
+                await cartAPI.removeFromCart(Number(item.id));
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+                return;
+              } else {
+                await cartAPI.removeFromCart(Number(item.id));
+                await cartAPI.addToCart({
+                  productId: item.product.id,
+                  quantity: productData.stock
+              });
+            }
+              
+
+
+
+              // Kullanıcıya bilgi ver
+              console.error(`Yetersiz stok: ${item.product.name} için sadece ${productData.stock} adet mevcut.`);
+              // Toast mesajı göster
+
+
+              addToast({
+                title: "Yetersiz Stok",
+                description: `${item.product.name} için yeterli stok bulunmuyor!`,
+                timeout: 3000,
+                shouldShowTimeoutProgress: true,
+              });
+
+              // Toast mesajı gösterildikten sonra sayfa yenile
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+              return;
+            }
+          
+          } catch (error) {
+
+            addToast({
+              title: "Stok Kontrol Hatası",
+              description: error instanceof Error ? error.message : "Stok kontrolü sırasında bir hata oluştu.",
+              timeout: 3000,
+              shouldShowTimeoutProgress: true,
+            });
+            throw error;
+            
+          }
+
+        }
+    }
+  
+
     if (items.length === 0) {
       addToast({
         title: "Sepet Boş",
@@ -108,7 +178,7 @@ export default function CartPage() {
       console.log('User data:', user);
       
       // Sipariş adresini tam adres olarak birleştir
-      const fullAddress = `${checkoutData.address}, ${checkoutData.district}, ${checkoutData.city} ${checkoutData.postalCode}`;
+      const fullAddress = `${checkoutData.firstName} ${checkoutData.lastName}, ${checkoutData.phone}, ${checkoutData.address}, ${checkoutData.district}, ${checkoutData.city} ${checkoutData.postalCode}`;
       
       // Order API'sine gönderilecek veri yapısı
       const orderData: CreateOrderCommand = {
