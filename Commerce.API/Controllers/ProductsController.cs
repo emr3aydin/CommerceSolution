@@ -3,8 +3,10 @@ using Commerce.Application.Features.Products.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Commerce.Domain; 
-using Microsoft.AspNetCore.Http; 
+using Commerce.Domain;
+using Microsoft.AspNetCore.Http;
+using Commerce.Infrastructure.Interfaces;
+using System.Security.Claims;
 
 namespace Commerce.API.Controllers
 {
@@ -13,10 +15,12 @@ namespace Commerce.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ILoggingService _loggingService;
 
-        public ProductsController(IMediator mediator)
+        public ProductsController(IMediator mediator, ILoggingService loggingService)
         {
             _mediator = mediator;
+            _loggingService = loggingService;
         }
 
         [HttpGet]
@@ -81,6 +85,11 @@ namespace Commerce.API.Controllers
                 {
                     return BadRequest(ApiResponse.ErrorResponse(result.Message));
                 }
+
+                // Log the create operation
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _loggingService.LogOperationAsync("CREATE", "Product", result.Data, userId, command);
+
                 return CreatedAtAction(nameof(GetProductById), new { id = result.Data }, result);
             }
             catch (Exception ex)
@@ -110,6 +119,11 @@ namespace Commerce.API.Controllers
                     }
                     return BadRequest(ApiResponse.ErrorResponse(result.Message));
                 }
+
+                // Log the update operation
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _loggingService.LogOperationAsync("UPDATE", "Product", id, userId, command);
+
                 return Ok(ApiResponse.SuccessResponse("Ürün başarıyla güncellendi."));
             }
             catch (Exception ex)
@@ -140,6 +154,11 @@ namespace Commerce.API.Controllers
                     // For InvalidOperationException, it will now return a Conflict response
                     return Conflict(ApiResponse.ErrorResponse(result.Message));
                 }
+
+                // Log the delete operation
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _loggingService.LogOperationAsync("DELETE", "Product", id, userId);
+
                 return NoContent(); // 204 No Content for successful deletion with no data to return
             }
             catch (Exception ex)

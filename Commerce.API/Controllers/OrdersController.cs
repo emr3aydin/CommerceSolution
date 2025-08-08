@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Commerce.Domain; // Make sure to include your Domain namespace
 using Commerce.Application.Features.Orders.DTOs; // Needed for OrderDto
+using Commerce.Infrastructure.Interfaces;
 
 namespace Commerce.API.Controllers
 {
@@ -15,10 +16,12 @@ namespace Commerce.API.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ILoggingService _loggingService;
 
-        public OrdersController(IMediator mediator)
+        public OrdersController(IMediator mediator, ILoggingService loggingService)
         {
             _mediator = mediator;
+            _loggingService = loggingService;
         }
 
         [HttpGet]
@@ -93,6 +96,9 @@ namespace Commerce.API.Controllers
                 if (!result.Success)
                     return BadRequest(ApiResponse.ErrorResponse(result.Message));
 
+                // Log the create order operation
+                await _loggingService.LogOperationAsync("CREATE", "Order", result.Data, userId.ToString(), command);
+
                 return CreatedAtAction(nameof(GetOrderById), new { id = result.Data }, ApiResponse<int>.SuccessResponse(result.Data, "Sipariş başarıyla oluşturuldu."));
             }
             catch (UnauthorizedAccessException ex)
@@ -124,6 +130,9 @@ namespace Commerce.API.Controllers
                 var result = await _mediator.Send(command);
                 if (!result.Success)
                     return NotFound(ApiResponse.ErrorResponse(result.Message));
+
+                // Log the update order status operation
+                await _loggingService.LogOperationAsync("UPDATE_STATUS", "Order", id, approvedBy.ToString(), new { Status = request.Status });
 
                 return Ok(ApiResponse.SuccessResponse(result.Message));
             }

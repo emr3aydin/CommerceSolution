@@ -3,6 +3,7 @@ using Commerce.Application.Features.Users.Interfaces;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using Commerce.Infrastructure.Services;
+using Commerce.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
@@ -14,8 +15,8 @@ using Commerce.Application.Common.Mappings;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<LogDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails(); 
-builder.Services.AddAutoMapper(cfg => { },typeof(MappingProfile));
+builder.Services.AddProblemDetails();
+builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile));
 
 builder.Services.AddIdentity<User, ApplicationRole>().AddEntityFrameworkStores<ApplicationDbContext>();
 
@@ -30,7 +31,7 @@ builder.Services.AddAuthentication(options =>
     {
         throw new InvalidOperationException("JWT Key is not configured");
     }
-    
+
     options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -59,7 +60,7 @@ builder.Services.AddCors(options =>
         }
         );
 }
-    
+
     );
 
 builder.Services.AddControllers();
@@ -100,10 +101,11 @@ builder.Services.AddSwaggerGen(c =>
 
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddDbContext<ApplicationDbContext>(options => 
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
 options.UseSqlServer(connectionString));
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<ILoggingService, LoggingService>();
 
 
 

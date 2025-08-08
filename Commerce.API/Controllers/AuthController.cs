@@ -6,6 +6,7 @@ using MediatR; // Add this using directive
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims; // For ClaimTypes
+using Commerce.Infrastructure.Interfaces;
 
 namespace Commerce.API.Controllers
 {
@@ -14,10 +15,12 @@ namespace Commerce.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly ILoggingService _loggingService;
 
-        public AuthController(IMediator mediator)
+        public AuthController(IMediator mediator, ILoggingService loggingService)
         {
             _mediator = mediator;
+            _loggingService = loggingService;
         }
 
         [HttpPost("register")]
@@ -39,6 +42,10 @@ namespace Commerce.API.Controllers
             {
                 return BadRequest(response);
             }
+
+            // Log the user registration
+            await _loggingService.LogOperationAsync("REGISTER", "User", registerDto.Email, null, new { Email = registerDto.Email, Username = registerDto.Username });
+
             return Ok(response);
         }
 
@@ -52,6 +59,10 @@ namespace Commerce.API.Controllers
             {
                 return Unauthorized(response);
             }
+
+            // Log the successful login
+            await _loggingService.LogOperationAsync("LOGIN", "User", loginDto.Email, null, new { Email = loginDto.Email });
+
             return Ok(response);
         }
 
@@ -75,6 +86,11 @@ namespace Commerce.API.Controllers
             {
                 return BadRequest(response);
             }
+
+            // Log the admin creation
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await _loggingService.LogOperationAsync("CREATE_ADMIN", "User", createAdminDto.Email, userId, new { Email = createAdminDto.Email, Username = createAdminDto.Username });
+
             return Ok(response);
         }
 

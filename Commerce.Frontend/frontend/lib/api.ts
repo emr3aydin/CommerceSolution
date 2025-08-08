@@ -1,16 +1,16 @@
 // API konfigürasyonu ve utility fonksiyonları
-import { 
-  RegisterDto, 
-  LoginDto, 
-  CreateAdminDto, 
-  AddToCartRequest, 
-  CreateCategoryCommand,
-  UpdateCategoryCommand,
-  CreateProductCommand,
-  UpdateProductCommand,
-  CreateOrderCommand,
-  UpdateOrderStatusRequest,
-  ApiResponse
+import {
+    RegisterDto,
+    LoginDto,
+    CreateAdminDto,
+    AddToCartRequest,
+    CreateCategoryCommand,
+    UpdateCategoryCommand,
+    CreateProductCommand,
+    UpdateProductCommand,
+    CreateOrderCommand,
+    UpdateOrderStatusRequest,
+    ApiResponse
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
@@ -80,12 +80,12 @@ export const apiClient = {
                 method: config.method || 'GET',
                 error: error instanceof Error ? error.message : error
             });
-            
+
             // Network error vs API error ayırımı
             if (error instanceof TypeError && error.message.includes('fetch')) {
                 throw new Error('Sunucuya bağlanılamıyor. Lütfen internet bağlantınızı kontrol edin.');
             }
-            
+
             throw error;
         }
     },
@@ -163,23 +163,23 @@ export const productAPI = {
 // Category API fonksiyonları
 export const categoryAPI = {
     async getAll() {
-        return apiClient.get('/Categories/getAll');
+        return apiClient.get('/api/Categories/getAll');
     },
 
     async getById(id: number) {
-        return apiClient.get(`/Categories/${id}`);
+        return apiClient.get(`/api/Categories/${id}`);
     },
 
     async create(categoryData: CreateCategoryCommand) {
-        return apiClient.post('/Categories/new', categoryData);
+        return apiClient.post('/api/Categories/new', categoryData);
     },
 
     async update(categoryData: UpdateCategoryCommand) {
-        return apiClient.post('/Categories/update', categoryData);
+        return apiClient.post('/api/Categories/update', categoryData);
     },
 
     async delete(id: number) {
-        return apiClient.delete(`/Categories/${id}`);
+        return apiClient.delete(`/api/Categories/${id}`);
     },
 };
 

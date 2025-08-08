@@ -5,20 +5,24 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Commerce.Infrastructure.Interfaces;
+using System.Security.Claims;
 
 namespace Commerce.API.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
 
     public class CategoriesController : ControllerBase
     {
 
         private readonly IMediator _mediator;
+        private readonly ILoggingService _loggingService;
 
-        public CategoriesController(IMediator mediator)
+        public CategoriesController(IMediator mediator, ILoggingService loggingService)
         {
             _mediator = mediator;
+            _loggingService = loggingService;
         }
 
         [HttpGet]
@@ -31,8 +35,8 @@ namespace Commerce.API.Controllers
             return Ok(categories);
         }
 
-        [HttpGet("{id}")] 
-        [AllowAnonymous] 
+        [HttpGet("{id}")]
+        [AllowAnonymous]
 
         public async Task<IActionResult> GetById(int id)
         {
@@ -50,8 +54,8 @@ namespace Commerce.API.Controllers
             }
 
             return Ok(category);
-            
-           
+
+
         }
 
         [HttpPost]
@@ -68,13 +72,16 @@ namespace Commerce.API.Controllers
 
             if (response.Success)
             {
-          
+                // Log the create operation
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _loggingService.LogOperationAsync("CREATE", "Category", response.Data, userId, command);
+
                 return Ok(response);
             }
             else
             {
- 
-                return BadRequest(response); 
+
+                return BadRequest(response);
             }
         }
         [HttpPost]
@@ -91,6 +98,10 @@ namespace Commerce.API.Controllers
 
             if (response.Success)
             {
+                // Log the update operation
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _loggingService.LogOperationAsync("UPDATE", "Category", command.Id, userId, command);
+
                 return Ok(response);
             }
             else
@@ -114,12 +125,19 @@ namespace Commerce.API.Controllers
                 var command = new DeleteCategoryCommand(id);
                 var resp = await _mediator.Send(command);
 
+                if (resp.Success)
+                {
+                    // Log the delete operation
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    await _loggingService.LogOperationAsync("DELETE", "Category", id, userId);
+                }
+
                 return Ok(resp);
             }
             catch (Exception ex)
             {
-                
-                if (ex.Message.Contains("bulunamadı")) 
+
+                if (ex.Message.Contains("bulunamadı"))
                 {
                     return NotFound(ex.Message);
                 }
