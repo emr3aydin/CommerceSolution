@@ -8,8 +8,7 @@ import { Chip } from "@heroui/chip";
 import { Pagination } from "@heroui/pagination";
 import { productAPI, categoryAPI } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
-import { Product, Category } from "@/types";
-import { addToast } from "@heroui/toast";
+import { Product, Category, PaginatedProductsResponse } from "@/types";
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -33,12 +32,7 @@ export default function Home() {
       if (response.success && response.data) {
         const categoriesData = response.data as Category[];
         setCategories(categoriesData);
-        
-        // Kategoriler yüklendiğinde toplam ürün sayısını hesapla
-        const totalProductCount = categoriesData.reduce((total: number, category: Category) => total + category.productCount, 0);
-        setTotalProducts(totalProductCount);
-        setTotalPages(Math.ceil(totalProductCount / pageSize));
-        console.log("Ana sayfa - kategorilerden hesaplanan toplam ürün sayısı:", totalProductCount);
+        console.log("Ana sayfa - kategoriler yüklendi:", categoriesData.length);
       }
     } catch (error) {
       console.error("Kategoriler yüklenirken hata:", error);
@@ -50,68 +44,38 @@ export default function Home() {
       setLoading(true);
       console.log('LoadInitialData - Starting to load products for page:', currentPage);
       
-      try {
-        console.log('LoadInitialData - Making API call to products');
-        const productsResponse = await productAPI.getAll({ 
-          pageSize: pageSize, 
-          pageNumber: currentPage,
-          isActive: true 
-        });
-        console.log('LoadInitialData - Products API response:', productsResponse);
-        
-        if (productsResponse.success && productsResponse.data) {
-          const productsData = productsResponse.data as any;
-          console.log('LoadInitialData - Products data:', productsData);
-          
-          // Backend'den paginated response geliyorsa
-          if (productsData.items && Array.isArray(productsData.items)) {
-            setProducts(productsData.items);
-            
-            // Kategorilerden toplam sayıyı al veya API'den gelen sayıyı kullan
-            const totalFromCategories = categories.reduce((total: number, category: Category) => total + category.productCount, 0);
-            if (totalFromCategories > 0) {
-              setTotalProducts(totalFromCategories);
-              setTotalPages(Math.ceil(totalFromCategories / pageSize));
-              console.log("Ana sayfa - kategorilerden pagination:", {
-                totalFromCategories,
-                totalPages: Math.ceil(totalFromCategories / pageSize)
-              });
-            } else {
-              // Kategoriler henüz yüklenmemişse fallback
-              setTotalProducts(productsData.totalCount || 0);
-              setTotalPages(productsData.totalPages || Math.ceil((productsData.totalCount || 0) / pageSize));
-            }
-          } else if (Array.isArray(productsData)) {
-            // Backend'den direkt array geliyorsa
-            setProducts(productsData);
-            const totalFromCategories = categories.reduce((total: number, category: Category) => total + category.productCount, 0);
-            if (totalFromCategories > 0) {
-              setTotalProducts(totalFromCategories);
-              setTotalPages(Math.ceil(totalFromCategories / pageSize));
-            } else {
-              setTotalProducts(productsData.length);
-              setTotalPages(1);
-            }
-          } else {
-            setProducts([]);
-            setTotalProducts(0);
-            setTotalPages(1);
-          }
-          
-          console.log('LoadInitialData - Final products list:', products);
-        }
-      } catch (productError) {
-        console.error("Ürünler yüklenirken hata:", productError);
-        console.error('Product Error details:', {
-          message: productError instanceof Error ? productError.message : 'Unknown error',
-          stack: productError instanceof Error ? productError.stack : undefined,
-        });
-        setProducts([]);
-      }
+      const productsResponse = await productAPI.getAll({ 
+        pageSize: pageSize, 
+        pageNumber: currentPage,
+        isActive: true 
+      });
+      console.log('LoadInitialData - Products API response:', productsResponse);
       
+      if (productsResponse.success && productsResponse.data) {
+        const paginatedData = productsResponse.data as PaginatedProductsResponse;
+        console.log('LoadInitialData - Paginated data:', paginatedData);
+        
+        setProducts(paginatedData.data || []);
+        setTotalProducts(paginatedData.totalCount);
+        setTotalPages(paginatedData.totalPages);
+        
+        console.log("Ana sayfa - Backend'den pagination:", {
+          itemsCount: paginatedData.data?.length || 0,
+          totalCount: paginatedData.totalCount,
+          totalPages: paginatedData.totalPages,
+          currentPage: paginatedData.pageNumber
+        });
+      } else {
+        console.error('LoadInitialData - API error:', productsResponse.message);
+        setProducts([]);
+        setTotalProducts(0);
+        setTotalPages(1);
+      }
     } catch (error) {
-      console.error("Genel veri yükleme hatası:", error);
+      console.error("Ürünler yüklenirken hata:", error);
       setProducts([]);
+      setTotalProducts(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
