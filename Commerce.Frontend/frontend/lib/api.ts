@@ -132,13 +132,14 @@ export const productAPI = {
         pageSize?: number;
     }) {
         const query = new URLSearchParams();
-        if (params?.categoryId) query.append('categoryId', params.categoryId.toString());
+        if (params?.categoryId && params.categoryId > 0) query.append('categoryId', params.categoryId.toString());
         if (params?.isActive !== undefined) query.append('isActive', params.isActive.toString());
         if (params?.searchTerm) query.append('searchTerm', params.searchTerm);
         if (params?.pageNumber) query.append('pageNumber', params.pageNumber.toString());
         if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
 
         const queryString = query.toString();
+        console.log('ProductAPI.getAll - Full URL:', `/api/Products${queryString ? `?${queryString}` : ''}`);
         return apiClient.get(`/api/Products${queryString ? `?${queryString}` : ''}`);
     },
 

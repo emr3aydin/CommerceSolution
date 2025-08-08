@@ -33,6 +33,7 @@ export default function Home() {
         const categoriesData = response.data as Category[];
         setCategories(categoriesData);
         console.log("Ana sayfa - kategoriler yüklendi:", categoriesData.length);
+        console.log("Ana sayfa - kategoriler:", categoriesData.map(c => ({ id: c.id, name: c.name })));
       }
     } catch (error) {
       console.error("Kategoriler yüklenirken hata:", error);
@@ -43,13 +44,22 @@ export default function Home() {
     try {
       setLoading(true);
       console.log('LoadInitialData - Starting to load products for page:', currentPage);
+      console.log('LoadInitialData - Selected category:', selectedCategory);
 
-      const productsResponse = await productAPI.getAll({
+      const apiParams: any = {
         pageSize: pageSize,
         pageNumber: currentPage,
-        isActive: true,
-        categoryId: selectedCategory || undefined
-      });
+        isActive: true
+      };
+
+      // Kategori seçilmişse ekle
+      if (selectedCategory !== null && selectedCategory > 0) {
+        apiParams.categoryId = selectedCategory;
+      }
+
+      console.log('LoadInitialData - API params:', apiParams);
+
+      const productsResponse = await productAPI.getAll(apiParams);
       console.log('LoadInitialData - Products API response:', productsResponse);
 
       if (productsResponse.success && productsResponse.data) {
@@ -99,6 +109,7 @@ export default function Home() {
   };
 
   const handleCategoryChange = (categoryId: number | null) => {
+    console.log('Category change:', { from: selectedCategory, to: categoryId });
     setSelectedCategory(categoryId);
     setCurrentPage(1); // Reset sayfa numarasını
   };
@@ -127,7 +138,7 @@ export default function Home() {
       <section className="container mx-auto px-4 py-8">
         {/* Kategori Filtreleri */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3">Kategoriler</h3>
+          <h3 className="text-lg font-semibold mb-3">Kategoriler ({categories.length} kategori)</h3>
           <div className="flex flex-wrap gap-2">
             <Chip
               color={selectedCategory === null ? "primary" : "default"}
@@ -137,6 +148,9 @@ export default function Home() {
             >
               Tüm Ürünler
             </Chip>
+            {categories.length === 0 && (
+              <span className="text-gray-500 text-sm">Kategoriler yükleniyor...</span>
+            )}
             {categories.map((category) => (
               <Chip
                 key={category.id}
@@ -145,7 +159,7 @@ export default function Home() {
                 className="cursor-pointer"
                 onClick={() => handleCategoryChange(category.id)}
               >
-                {category.name}
+                {category.name} (ID: {category.id})
               </Chip>
             ))}
           </div>
