@@ -219,6 +219,17 @@ export interface UpdateOrderStatusRequest {
   status: string;
 }
 
+// Paginated responses
+export interface PaginatedProductsResponse {
+  data: Product[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
 // Log interface'leri
 export interface Log {
   id: number;

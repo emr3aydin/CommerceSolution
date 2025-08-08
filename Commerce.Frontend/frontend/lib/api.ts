@@ -10,10 +10,9 @@ import {
     UpdateProductCommand,
     CreateOrderCommand,
     UpdateOrderStatusRequest,
-    ApiResponse
-} from '@/types';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
+    ApiResponse,
+    PaginatedProductsResponse
+} from '@/types'; const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
 
 // Temel API istemcisi
 export const apiClient = {
