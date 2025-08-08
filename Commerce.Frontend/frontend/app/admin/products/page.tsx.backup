@@ -158,20 +158,44 @@ export default function AdminProductsPage() {
         setShowCreateForm(false);
         resetForm();
         loadProducts();
-        // Başarı mesajı
+        addToast({
+          title: "Başarıyla oluşturuldu",
+          color: "success",
+          description: response.message || "Ürün başarıyla oluşturuldu!",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
       } else {
-        // Hata mesajı
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: response.message || "Ürün oluşturulurken bir hata oluştu.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
       }
     } catch (error) {
       console.error("Ürün oluşturulurken hata:", error);
-      // Toast mesajı temizlendi
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: "Ürün oluşturulurken bir hata oluştu.",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
   const handleUpdateProduct = async () => {
     try {
       if (!editingProduct || !formData.name || !formData.price || !formData.stock || !formData.categoryId) {
-        // Toast mesajı temizlendi
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Lütfen tüm zorunlu alanları doldurun.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
@@ -192,13 +216,31 @@ export default function AdminProductsPage() {
         setEditingProduct(null);
         resetForm();
         loadProducts();
-        // Toast mesajı temizlendi
+        addToast({
+          title: "Başarıyla güncellendi",
+          color: "success",
+          description: response.message || "Ürün başarıyla güncellendi!",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
       } else {
-        // Toast mesajı temizlendi
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: response.message || "Ürün güncellenirken bir hata oluştu.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
       }
     } catch (error) {
       console.error("Ürün güncellenirken hata:", error);
-      // Toast mesajı temizlendi
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: "Ürün güncellenirken bir hata oluştu.",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
@@ -208,13 +250,31 @@ export default function AdminProductsPage() {
         const response = await productAPI.delete(productId);
         if (response.success) {
           loadProducts();
-          // Toast mesajı temizlendi
+          addToast({
+            title: "Başarıyla silindi",
+            color: "success",
+            description: response.message || "Ürün başarıyla silindi!",
+            timeout: 3000,
+            shouldShowTimeoutProgress: true,
+          });
         } else {
-          // Toast mesajı temizlendi
+          addToast({
+            title: "Hata",
+            color: "danger",
+            description: response.message || "Ürün silinirken bir hata oluştu.",
+            timeout: 3000,
+            shouldShowTimeoutProgress: true,
+          });
         }
       } catch (error) {
         console.error("Ürün silinirken hata:", error);
-        // Toast mesajı temizlendi
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Ürün silinirken bir hata oluştu.",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
       }
     }
   };
@@ -262,13 +322,25 @@ export default function AdminProductsPage() {
     try {
       // Dosya boyutu kontrolü (5MB max)
       if (file.size > 5 * 1024 * 1024) {
-        // Toast mesajı temizlendi
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Dosya boyutu 5MB'dan büyük olamaz",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
       // Dosya tipi kontrolü
       if (!file.type.startsWith('image/')) {
-        // Toast mesajı temizlendi
+        addToast({
+          title: "Hata",
+          color: "danger",
+          description: "Sadece resim dosyaları yüklenebilir",
+          timeout: 3000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
@@ -280,7 +352,13 @@ export default function AdminProductsPage() {
 
     } catch (error) {
       console.error('Dosya seçim hatası:', error);
-      // Toast mesajı temizlendi
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: "Dosya seçilirken hata oluştu",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
@@ -293,14 +371,26 @@ export default function AdminProductsPage() {
       const imageUrl = await uploadImage(selectedFile);
 
       setFormData({ ...formData, imageUrl });
-      // Toast mesajı temizlendi
+      addToast({
+        title: "Başarıyla yüklendi",
+        color: "success",
+        description: "Seçtiğiniz resim başarıyla yüklendi!",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
 
       // Dosya seçimini temizle ama preview'ı koru
       setSelectedFile(null);
 
     } catch (error: any) {
       console.error('Resim yükleme hatası:', error);
-      // Toast mesajı temizlendi
+      addToast({
+        title: "Hata",
+        color: "danger",
+        description: error.message || "Resim yüklenirken bir hata oluştu.",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     } finally {
       setUploadingImage(false);
     }
