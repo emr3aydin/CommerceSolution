@@ -15,7 +15,6 @@ interface User {
     lastName: string;
     roles: string[];
 }
-
 export default function AdminLayout({
     children,
 }: {
@@ -115,8 +114,8 @@ export default function AdminLayout({
                                             key={item.href}
                                             href={item.href}
                                             className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${pathname === item.href
-                                                    ? 'bg-primary-100 text-primary-700 border-r-2 border-primary-500'
-                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                                ? 'bg-primary-100 text-primary-700 border-r-2 border-primary-500'
+                                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                                 }`}
                                         >
                                             <span className="mr-3">{item.icon}</span>
