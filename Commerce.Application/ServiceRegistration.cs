@@ -17,7 +17,8 @@ namespace Commerce.Application
             // FluentValidation Registration
             services.AddValidatorsFromAssembly(assembly);
             services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-
+            //services.AddSingleton();
+            //services.AddTransient();
             return services;
         }
     }

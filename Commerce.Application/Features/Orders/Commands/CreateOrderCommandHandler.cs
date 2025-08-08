@@ -2,10 +2,11 @@ using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Orders.Commands
 {
-    public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, int>
+    public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, ApiResponse<int>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,19 +15,16 @@ namespace Commerce.Application.Features.Orders.Commands
             _context = context;
         }
 
-        public async Task<int> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<int>> Handle(CreateOrderCommand request, CancellationToken cancellationToken) // Updated return type
         {
-            // Kullanıcı var mı kontrol et
             var userExists = await _context.Users
                 .AnyAsync(u => u.Id == request.UserId, cancellationToken);
 
             if (!userExists)
-                throw new ArgumentException("Kullanıcı bulunamadı.");
+                return ApiResponse<int>.ErrorResponse("Kullanıcı bulunamadı.");
 
-            // Sipariş numarası oluştur
             var orderNumber = GenerateOrderNumber();
 
-            // Sipariş oluştur
             var order = new Order
             {
                 OrderNumber = orderNumber,
@@ -35,25 +33,24 @@ namespace Commerce.Application.Features.Orders.Commands
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow,
                 UserId = request.UserId,
-                TotalAmount = 0 // Hesaplanacak
+                TotalAmount = 0
             };
 
             _context.Orders.Add(order);
-            await _context.SaveChangesAsync(cancellationToken); // Order ID'sini almak için
+            await _context.SaveChangesAsync(cancellationToken);
 
             decimal totalAmount = 0;
 
-            // Sipariş öğelerini oluştur
             foreach (var item in request.OrderItems)
             {
                 var product = await _context.Products
                     .FirstOrDefaultAsync(p => p.Id == item.ProductId && p.IsActive, cancellationToken);
 
                 if (product == null)
-                    throw new ArgumentException($"Ürün bulunamadı: {item.ProductId}");
+                    return ApiResponse<int>.ErrorResponse($"Ürün bulunamadı: {item.ProductId}");
 
                 if (product.Stock < item.Quantity)
-                    throw new ArgumentException($"Yeterli stok yok: {product.Name}");
+                    return ApiResponse<int>.ErrorResponse($"Yeterli stok yok: {product.Name}");
 
                 var orderItem = new OrderItem
                 {
@@ -65,17 +62,15 @@ namespace Commerce.Application.Features.Orders.Commands
 
                 _context.OrderItems.Add(orderItem);
 
-                // Stoku düş
                 product.Stock -= item.Quantity;
 
                 totalAmount += product.Price * item.Quantity;
             }
 
-            // Toplam tutarı güncelle
             order.TotalAmount = totalAmount;
 
             await _context.SaveChangesAsync(cancellationToken);
-            return order.Id;
+            return ApiResponse<int>.SuccessResponse(order.Id, "Sipariş başarıyla oluşturuldu.");
         }
 
         private string GenerateOrderNumber()

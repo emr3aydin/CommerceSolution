@@ -7,10 +7,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Commerce.Domain; 
 
 namespace Commerce.Application.Features.Categories.Queries
 {
-    public class GetCategoryByIdQueryHandler : IRequestHandler<GetCategoryByIdQuery, CategoryDto>
+    public class GetCategoryByIdQueryHandler : IRequestHandler<GetCategoryByIdQuery, ApiResponse<CategoryDto>>
     {
         private readonly ApplicationDbContext _context;
 
@@ -19,7 +20,7 @@ namespace Commerce.Application.Features.Categories.Queries
             _context = context;
         }
 
-        public async Task<CategoryDto> Handle(GetCategoryByIdQuery request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<CategoryDto>> Handle(GetCategoryByIdQuery request, CancellationToken cancellationToken)
         {
             var category = await _context.Categories
                 .Include(c => c.Products)
@@ -28,7 +29,7 @@ namespace Commerce.Application.Features.Categories.Queries
 
             if (category == null)
             {
-                throw new Exception($"ID'si {request.Id} olan kategori bulunamadı.");
+                return ApiResponse<CategoryDto>.ErrorResponse($"ID'si {request.Id} olan kategori bulunamadı.");
             }
 
             // Category varlığını CategoryDto'ya dönüştür
@@ -43,7 +44,7 @@ namespace Commerce.Application.Features.Categories.Queries
                 ProductCount = category.Products.Count
             };
 
-            return categoryDto;
+            return ApiResponse<CategoryDto>.SuccessResponse(categoryDto, "Kategori başarıyla getirildi.");
         }
     }
 }

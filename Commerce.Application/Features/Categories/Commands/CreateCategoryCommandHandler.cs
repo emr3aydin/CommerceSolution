@@ -5,12 +5,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Commerce.Domain;
 
 namespace Commerce.Application.Features.Categories.Commands
 {
-    public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryCommand, int>
+    public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryCommand, ApiResponse<int>>
     {
-
         private readonly ApplicationDbContext _context;
 
         public CreateCategoryCommandHandler(ApplicationDbContext context)
@@ -18,7 +18,7 @@ namespace Commerce.Application.Features.Categories.Commands
             _context = context;
         }
 
-        public async Task<int> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<int>> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
         {
             var category = new Domain.Entities.Category
             {
@@ -28,10 +28,11 @@ namespace Commerce.Application.Features.Categories.Commands
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow
             };
+
             _context.Categories.Add(category);
             await _context.SaveChangesAsync(cancellationToken);
-            return category.Id;
-        }
 
+            return ApiResponse<int>.SuccessResponse(category.Id, "Kategori başarıyla oluşturuldu.");
+        }
     }
 }

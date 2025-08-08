@@ -1,294 +1,558 @@
 "use client";
 
-import { useEffect } from "react";
-import {
-  Card,
-  CardBody,
-  Image,
-  Button,
-  Divider,
-  Chip,
-} from "@heroui/react";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
-import Layout from "@/components/layout/Layout";
-import { useCartStore } from "@/store/cart";
-import { useAuthStore } from "@/store/auth";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import React, { useState } from 'react';
+import { Card, CardBody, CardHeader } from '@heroui/card';
+import { Button } from '@heroui/button';
+import { Input } from '@heroui/input';
+import { Select, SelectItem } from '@heroui/select';
+import { Divider } from '@heroui/divider';
+import { Chip } from '@heroui/chip';
+import NextLink from 'next/link';
+import { useCart } from '@/contexts/CartContext';
+import { addToast } from '@heroui/toast';
+import { ShoppingCartIcon, TrashIcon } from '@/components/icons';
+import { orderAPI, authAPI, productAPI, cartAPI } from '@/lib/api';
+import { CreateOrderCommand } from '@/types';
+import { toast } from '@heroui/theme';
 
 export default function CartPage() {
-  const { cart, fetchCart, removeFromCart, clearCart, isLoading } = useCartStore();
-  const { isAuthenticated } = useAuthStore();
-  const router = useRouter();
+  const { items, removeFromCart, updateQuantity, getTotalPrice, getTotalItems, clearCart } = useCart();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [step, setStep] = useState<'cart' | 'checkout' | 'payment'>('cart');
+  
+  // Checkout form data
+  const [checkoutData, setCheckoutData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    district: '',
+    postalCode: '',
+    notes: ''
+  });
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCart();
+  const handleRemoveFromCart = (productId: string | number, productName: string) => {
+    removeFromCart(productId);
+    addToast({
+      title: `${productName}`,
+      description: "Ürün sepetten kaldırıldı!",
+      timeout: 3000,
+      shouldShowTimeoutProgress: true,
+    });
+  };
+
+  const handleClearCart = () => {
+    if (items.length > 0) {
+      clearCart();
+      addToast({
+        title: "Sepet temizlendi",
+        description: "Tüm ürünler sepetten kaldırıldı!",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
     }
-  }, [isAuthenticated, fetchCart]);
+  };
 
-  const handleRemoveItem = async (cartItemId: number) => {
+  const  handleCheckout = async () => {
+    if(items.length>0) {
+      for (const item of items) {
+        // Stok kontrolü yap
+          try {
+            const productResponse = await productAPI.getById(item.product.id);
+            if (!productResponse.success || !productResponse.data) {
+              throw new Error(`Ürün bilgisi alınamadı: ${item.product.name}`);
+            }
+            const productData = productResponse.data;
+            // Stok kontrolü
+            if (productData.stock < item.quantity) {
+              if (productData.stock <= 0) {
+                addToast({
+                  title: "Stok Tükendi",
+                  description: `${item.product.name} ürünü stokta kalmadı!`,
+                  timeout: 3000,
+                  shouldShowTimeoutProgress: true,
+                });
+                await cartAPI.removeFromCart(Number(item.id));
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+                return;
+              } else {
+                await cartAPI.removeFromCart(Number(item.id));
+                await cartAPI.addToCart({
+                  productId: item.product.id,
+                  quantity: productData.stock
+              });
+            }
+              
+
+
+
+              // Kullanıcıya bilgi ver
+              console.error(`Yetersiz stok: ${item.product.name} için sadece ${productData.stock} adet mevcut.`);
+              // Toast mesajı göster
+
+
+              addToast({
+                title: "Yetersiz Stok",
+                description: `${item.product.name} için yeterli stok bulunmuyor!`,
+                timeout: 3000,
+                shouldShowTimeoutProgress: true,
+              });
+
+              // Toast mesajı gösterildikten sonra sayfa yenile
+              setTimeout(() => {
+                window.location.reload();
+              }, 3000);
+              return;
+            }
+          
+          } catch (error) {
+
+            addToast({
+              title: "Stok Kontrol Hatası",
+              description: error instanceof Error ? error.message : "Stok kontrolü sırasında bir hata oluştu.",
+              timeout: 3000,
+              shouldShowTimeoutProgress: true,
+            });
+            throw error;
+            
+          }
+
+        }
+    }
+  
+
+    if (items.length === 0) {
+      addToast({
+        title: "Sepet Boş",
+        description: "Sepetinizde ürün bulunmuyor!",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
+      return;
+    }
+    setStep('checkout');
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!checkoutData.firstName || !checkoutData.lastName || !checkoutData.email || 
+        !checkoutData.phone || !checkoutData.address || !checkoutData.city) {
+      addToast({
+        title: "Eksik Bilgi",
+        description: "Lütfen tüm zorunlu alanları doldurun!",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
+      return;
+    }
+
+    // Kullanıcı giriş yapmış mı kontrol et
+    const token = localStorage.getItem('authToken');
+    
+    if (!token) {
+      addToast({
+        title: "Giriş Gerekli",
+        description: "Sipariş vermek için giriş yapmanız gerekiyor!",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
+      return;
+    }
+
+    setIsCheckingOut(true);
+    
     try {
-      await removeFromCart(cartItemId);
-      toast.success("Ürün sepetten çıkarıldı");
-    } catch (error) {
-      toast.error("Ürün çıkarılırken bir hata oluştu");
+      // /api/Auth/me API'sinden kullanıcı bilgilerini al
+      console.log('Getting user info from /api/Auth/me');
+      const userResponse = await authAPI.getCurrentUser();
+      console.log('User API response:', userResponse);
+      
+      if (!userResponse.success || !userResponse.data) {
+        throw new Error('Kullanıcı bilgileri alınamadı');
+      }
+      
+      const user = userResponse.data;
+      console.log('User data:', user);
+      
+      // Sipariş adresini tam adres olarak birleştir
+      const fullAddress = `${checkoutData.firstName} ${checkoutData.lastName}, ${checkoutData.phone}, ${checkoutData.address}, ${checkoutData.district}, ${checkoutData.city} ${checkoutData.postalCode}`;
+      
+      // Order API'sine gönderilecek veri yapısı
+      const orderData: CreateOrderCommand = {
+        userId: user.id,
+        shippingAddress: fullAddress,
+        orderItems: items.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity
+        }))
+      };
+
+      console.log('Creating order with data:', orderData);
+      
+      // Gerçek API çağrısı
+      const response = await orderAPI.create(orderData);
+      console.log('Order API response:', response);
+      
+      if (response.success) {
+        addToast({
+          title: "Sipariş Başarılı!",
+          description: "Siparişiniz başarıyla alındı! Havale bilgileri e-posta adresinize gönderilecek.",
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
+        
+        // Sipariş başarılı olursa sepeti temizle
+        clearCart();
+        setStep('cart');
+        setCheckoutData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          address: '',
+          city: '',
+          district: '',
+          postalCode: '',
+          notes: ''
+        });
+      } else {
+        throw new Error(response.message || 'Sipariş oluşturulamadı');
+      }
+      
+    } catch (error: any) {
+      console.error('Order error:', error);
+      addToast({
+        title: "Sipariş Hatası",
+        description: error.message || "Sipariş verirken bir hata oluştu. Lütfen tekrar deneyin.",
+        timeout: 3000,
+        shouldShowTimeoutProgress: true,
+      });
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
-  const handleClearCart = async () => {
-    try {
-      await clearCart();
-      toast.success("Sepet temizlendi");
-    } catch (error) {
-      toast.error("Sepet temizlenirken bir hata oluştu");
-    }
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('tr-TR', {
-      style: 'currency',
-      currency: 'TRY'
-    }).format(price);
-  };
-
-  const handleCheckout = () => {
-    router.push("/checkout");
-  };
-
-  if (!isAuthenticated) {
+  if (step === 'cart') {
     return (
-      <Layout>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <Card className="max-w-md w-full mx-4">
-            <CardBody className="text-center p-8">
-              <div className="text-6xl mb-4">🔒</div>
-              <h2 className="text-2xl font-bold mb-4">Giriş Gerekli</h2>
-              <p className="text-gray-600 mb-6">
-                Sepetinizi görüntülemek için giriş yapmanız gerekiyor.
-              </p>
-              <div className="space-y-3">
-                <Button
-                  color="primary"
-                  className="w-full"
-                  onPress={() => router.push("/auth/login")}
-                >
-                  Giriş Yap
-                </Button>
-                <Button
-                  variant="bordered"
-                  className="w-full"
-                  onPress={() => router.push("/auth/register")}
-                >
-                  Kayıt Ol
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
-
-  return (
-    <Layout>
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex items-center gap-4">
-              <Button
-                isIconOnly
-                variant="light"
-                onPress={() => router.back()}
-              >
-                <ArrowLeft size={20} />
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Sepetim</h1>
-                <p className="text-gray-600">
-                  {cart?.totalItems || 0} ürün sepetinizde
-                </p>
-              </div>
-            </div>
-          </div>
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Sepetim</h1>
+          <Chip color="primary" variant="flat">
+            {getTotalItems()} ürün
+          </Chip>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {!cart || cart.items.length === 0 ? (
-            /* Empty Cart */
-            <div className="text-center py-16">
-              <div className="text-gray-400 text-8xl mb-6">🛒</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Sepetiniz boş
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Henüz sepetinize ürün eklemediniz. Alışverişe başlamak için ürünleri keşfedin.
-              </p>
-              <Button
-                color="primary"
-                size="lg"
-                onPress={() => router.push("/products")}
-                startContent={<ShoppingBag size={20} />}
-              >
+        {items.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardBody>
+              <ShoppingCartIcon size={64} className="mx-auto mb-4 text-gray-400" />
+              <h2 className="text-xl font-semibold mb-2">Sepetiniz boş</h2>
+              <p className="text-gray-500 mb-6">Alışverişe başlamak için ürünlerimize göz atın</p>
+              <Button as={NextLink} href="/products" color="primary">
                 Alışverişe Başla
               </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Cart Items */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold">Sepet Ürünleri</h2>
-                  <Button
-                    color="danger"
-                    variant="light"
-                    size="sm"
-                    onPress={handleClearCart}
-                    startContent={<Trash2 size={16} />}
-                    isLoading={isLoading}
-                  >
-                    Sepeti Temizle
-                  </Button>
-                </div>
-
-                {cart.items.map((item) => (
-                  <Card key={item.id}>
-                    <CardBody className="p-6">
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="flex-shrink-0">
-                          <Image
-                            src={item.product.imageUrl || "/api/placeholder/150/150"}
+            </CardBody>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Cart Items */}
+            <div className="lg:col-span-2 space-y-4">
+              {items.map((item) => (
+                <Card key={item.id}>
+                  <CardBody className="p-4">
+                    <div className="flex gap-4">
+                      <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {item.product.imageUrl ? (
+                          <img
+                            src={item.product.imageUrl}
                             alt={item.product.name}
-                            className="w-24 h-24 object-cover rounded-lg"
+                            className="w-full h-full object-cover"
                           />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <ShoppingCartIcon size={24} />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">{item.product.name}</h3>
+                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                          {item.product.description}
+                        </p>
+                        <p className="text-primary font-bold text-lg">
+                          ₺{item.price.toFixed(2)}
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-col items-end gap-2">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          color="danger"
+                          onPress={() => handleRemoveFromCart(item.product.id, item.product.name)}
+                        >
+                          <TrashIcon size={16} />
+                        </Button>
+                        
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="flat"
+                            onPress={() => updateQuantity(item.product.id, item.quantity - 1)}
+                            className="w-8 h-8 min-w-0"
+                          >
+                            -
+                          </Button>
+                          <span className="text-sm min-w-[30px] text-center font-semibold">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="flat"
+                            onPress={() => updateQuantity(item.product.id, item.quantity + 1)}
+                            className="w-8 h-8 min-w-0"
+                          >
+                            +
+                          </Button>
                         </div>
                         
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg mb-2">
-                            {item.product.name}
-                          </h3>
-                          
-                          {item.product.description && (
-                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                              {item.product.description}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-600">Adet:</span>
-                                <Chip color="primary" variant="flat">
-                                  {item.quantity}
-                                </Chip>
-                              </div>
-                              
-                              <div className="flex flex-col">
-                                <span className="text-sm text-gray-600">Birim Fiyat</span>
-                                <span className="font-medium">
-                                  {formatPrice(item.unitPrice)}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <span className="text-sm text-gray-600 block">Toplam</span>
-                                <span className="text-lg font-bold text-primary">
-                                  {formatPrice(item.totalPrice)}
-                                </span>
-                              </div>
-                              
-                              <Button
-                                isIconOnly
-                                color="danger"
-                                variant="light"
-                                size="sm"
-                                onPress={() => handleRemoveItem(item.id)}
-                                isLoading={isLoading}
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Order Summary */}
-              <div className="lg:col-span-1">
-                <Card className="sticky top-4">
-                  <CardBody className="p-6">
-                    <h3 className="text-xl font-semibold mb-4">Sipariş Özeti</h3>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>Ara Toplam:</span>
-                        <span>{formatPrice(cart.totalAmount)}</span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span>Kargo:</span>
-                        <span className="text-green-600">Ücretsiz</span>
-                      </div>
-                      
-                      <Divider />
-                      
-                      <div className="flex justify-between text-lg font-bold">
-                        <span>Toplam:</span>
-                        <span className="text-primary">
-                          {formatPrice(cart.totalAmount)}
-                        </span>
-                      </div>
-                      
-                      <div className="text-sm text-gray-600 text-center">
-                        200 TL ve üzeri alışverişlerde kargo ücretsiz
-                      </div>
-                    </div>
-
-                    <Divider className="my-6" />
-
-                    <div className="space-y-3">
-                      <Button
-                        color="primary"
-                        size="lg"
-                        className="w-full"
-                        onPress={handleCheckout}
-                      >
-                        Siparişi Tamamla
-                      </Button>
-                      
-                      <Button
-                        variant="bordered"
-                        size="lg"
-                        className="w-full"
-                        onPress={() => router.push("/products")}
-                      >
-                        Alışverişe Devam Et
-                      </Button>
-                    </div>
-
-                    {/* Security Info */}
-                    <div className="mt-6 p-4 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <div className="text-xl">🔒</div>
-                        <div className="text-sm">
-                          <div className="font-medium">Güvenli Ödeme</div>
-                          <div>256-bit SSL şifreleme</div>
-                        </div>
+                        <p className="text-sm font-semibold">
+                          Toplam: ₺{(item.price * item.quantity).toFixed(2)}
+                        </p>
                       </div>
                     </div>
                   </CardBody>
                 </Card>
-              </div>
+              ))}
             </div>
-          )}
+
+            {/* Order Summary */}
+            <div className="lg:col-span-1">
+              <Card className="sticky top-4">
+                <CardHeader>
+                  <h3 className="font-semibold text-lg">Sipariş Özeti</h3>
+                </CardHeader>
+                <CardBody className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Ürünler ({getTotalItems()})</span>
+                      <span>₺{getTotalPrice().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Kargo</span>
+                      <span className="text-green-600">Ücretsiz</span>
+                    </div>
+                    <Divider />
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Toplam</span>
+                      <span className="text-primary">₺{getTotalPrice().toFixed(2)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Button
+                      color="primary"
+                      size="lg"
+                      className="w-full"
+                      onPress={handleCheckout}
+                    >
+                      Ödemeye Geç
+                    </Button>
+                    <Button
+                      variant="flat"
+                      color="danger"
+                      size="sm"
+                      className="w-full"
+                      onPress={handleClearCart}
+                    >
+                      Sepeti Temizle
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (step === 'checkout') {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="light"
+            onPress={() => setStep('cart')}
+          >
+            ← Sepete Dön
+          </Button>
+          <h1 className="text-3xl font-bold">Ödeme Bilgileri</h1>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Checkout Form */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <h3 className="font-semibold text-lg">Teslimat Bilgileri</h3>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Ad"
+                    placeholder="Adınızı girin"
+                    value={checkoutData.firstName}
+                    onChange={(e) => setCheckoutData({...checkoutData, firstName: e.target.value})}
+                    isRequired
+                  />
+                  <Input
+                    label="Soyad"
+                    placeholder="Soyadınızı girin"
+                    value={checkoutData.lastName}
+                    onChange={(e) => setCheckoutData({...checkoutData, lastName: e.target.value})}
+                    isRequired
+                  />
+                  <Input
+                    label="E-posta"
+                    type="email"
+                    placeholder="E-posta adresinizi girin"
+                    value={checkoutData.email}
+                    onChange={(e) => setCheckoutData({...checkoutData, email: e.target.value})}
+                    isRequired
+                  />
+                  <Input
+                    label="Telefon"
+                    placeholder="Telefon numaranızı girin"
+                    value={checkoutData.phone}
+                    onChange={(e) => setCheckoutData({...checkoutData, phone: e.target.value})}
+                    isRequired
+                  />
+                </div>
+                
+                <Input
+                  label="Adres"
+                  placeholder="Tam adresinizi girin"
+                  value={checkoutData.address}
+                  onChange={(e) => setCheckoutData({...checkoutData, address: e.target.value})}
+                  isRequired
+                />
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Şehir"
+                    placeholder="Şehir"
+                    value={checkoutData.city}
+                    onChange={(e) => setCheckoutData({...checkoutData, city: e.target.value})}
+                    isRequired
+                  />
+                  <Input
+                    label="İlçe"
+                    placeholder="İlçe"
+                    value={checkoutData.district}
+                    onChange={(e) => setCheckoutData({...checkoutData, district: e.target.value})}
+                  />
+                  <Input
+                    label="Posta Kodu"
+                    placeholder="Posta kodu"
+                    value={checkoutData.postalCode}
+                    onChange={(e) => setCheckoutData({...checkoutData, postalCode: e.target.value})}
+                  />
+                </div>
+                
+                <Input
+                  label="Sipariş Notu (İsteğe bağlı)"
+                  placeholder="Özel talepleriniz varsa belirtebilirsiniz"
+                  value={checkoutData.notes}
+                  onChange={(e) => setCheckoutData({...checkoutData, notes: e.target.value})}
+                />
+              </CardBody>
+            </Card>
+
+            {/* Payment Method */}
+            <Card className="mt-6">
+              <CardHeader>
+                <h3 className="font-semibold text-lg">Ödeme Yöntemi</h3>
+              </CardHeader>
+              <CardBody>
+                <div className="p-4 border border-primary rounded-lg bg-primary-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-primary">Havale/EFT</h4>
+                      <p className="text-sm text-gray-600">
+                        Sipariş onaylandıktan sonra havale bilgileri e-posta adresinize gönderilecektir.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Order Summary */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-4">
+              <CardHeader>
+                <h3 className="font-semibold text-lg">Sipariş Özeti</h3>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="line-clamp-1">
+                        {item.product.name} x{item.quantity}
+                      </span>
+                      <span>₺{(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <Divider />
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Ara Toplam</span>
+                    <span>₺{getTotalPrice().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Kargo</span>
+                    <span className="text-green-600">Ücretsiz</span>
+                  </div>
+                  <Divider />
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Toplam</span>
+                    <span className="text-primary">₺{getTotalPrice().toFixed(2)}</span>
+                  </div>
+                </div>
+                
+                <Button
+                  color="primary"
+                  size="lg"
+                  className="w-full"
+                  onPress={handlePlaceOrder}
+                  isLoading={isCheckingOut}
+                  disabled={isCheckingOut}
+                >
+                  {isCheckingOut ? 'Sipariş Veriliyor...' : 'Siparişi Tamamla'}
+                </Button>
+              </CardBody>
+            </Card>
+          </div>
         </div>
       </div>
-    </Layout>
-  );
+    );
+  }
+
+  return null;
 }

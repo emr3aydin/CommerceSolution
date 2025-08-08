@@ -12,7 +12,7 @@ namespace Commerce.Domain.Entities
 {
     public class User : IdentityUser<Guid>
     {
-        public string FirstName { get; set; }
+        public string FirstName { get; set; } = null!;
         public string LastName { get; set; }
 
         public DateTime DateOfBirth { get; set; }

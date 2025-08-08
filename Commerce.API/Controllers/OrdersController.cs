@@ -4,12 +4,14 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Commerce.Domain; // Make sure to include your Domain namespace
+using Commerce.Application.Features.Orders.DTOs; // Needed for OrderDto
 
 namespace Commerce.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Tüm order işlemleri için kimlik doğrulama gerekli
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -19,9 +21,6 @@ namespace Commerce.API.Controllers
             _mediator = mediator;
         }
 
-        /// <summary>
-        /// Tüm siparişleri listeler (Admin için tümü, kullanıcı için kendi siparişleri)
-        /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAllOrders(
             [FromQuery] string? status = null,
@@ -32,70 +31,84 @@ namespace Commerce.API.Controllers
             {
                 var userId = User.IsInRole("Admin") ? (Guid?)null : GetCurrentUserId();
                 var query = new GetAllOrdersQuery(userId, status, pageNumber, pageSize);
-                var orders = await _mediator.Send(query);
-                return Ok(orders);
+                var result = await _mediator.Send(query);
+
+                if (!result.Success)
+                {
+                    return StatusCode(500, ApiResponse.ErrorResponse(result.Message));
+                }
+
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Siparişler getirilirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Siparişler getirilirken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// ID'ye göre sipariş getirir
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetOrderById(int id)
         {
             try
             {
                 if (id <= 0)
-                    return BadRequest(new { message = "Geçerli bir sipariş ID'si giriniz." });
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir sipariş ID'si giriniz."));
 
-                var order = await _mediator.Send(new GetOrderByIdQuery(id));
-                if (order == null)
-                    return NotFound(new { message = "Sipariş bulunamadı." });
+                var result = await _mediator.Send(new GetOrderByIdQuery(id));
 
-                // Kullanıcı sadece kendi siparişlerini görebilir (Admin hariç)
+                if (!result.Success)
+                    return NotFound(ApiResponse.ErrorResponse(result.Message));
+
+                var order = result.Data;
+
                 if (!User.IsInRole("Admin") && order.UserId != GetCurrentUserId())
-                    return Forbid();
-
-                return Ok(order);
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.ErrorResponse("Bu siparişi görüntüleme yetkiniz yok."));
+                }
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Sipariş getirilirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Sipariş getirilirken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Yeni sipariş oluşturur
-        /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderCommand command)
         {
             try
             {
-                // Kullanıcı sadece kendi adına sipariş verebilir
                 var userId = GetCurrentUserId();
                 var newCommand = command with { UserId = userId };
 
-                var orderId = await _mediator.Send(newCommand);
-                return CreatedAtAction(nameof(GetOrderById), new { id = orderId }, new { id = orderId });
+                var result = await _mediator.Send(newCommand);
+                if (!result.Success)
+                    return BadRequest(ApiResponse.ErrorResponse(result.Message));
+
+                return CreatedAtAction(nameof(GetOrderById), new { id = result.Data }, ApiResponse<int>.SuccessResponse(result.Data, "Sipariş başarıyla oluşturuldu."));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Sipariş oluşturulurken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Sipariş oluşturulurken bir hata oluştu: {ex.Message}"));
             }
         }
 
-        /// <summary>
-        /// Sipariş durumunu günceller (Sadece Admin)
-        /// </summary>
         [HttpPatch("{id}/status")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateOrderStatus(int id, [FromBody] UpdateOrderStatusRequest request)
@@ -103,20 +116,28 @@ namespace Commerce.API.Controllers
             try
             {
                 if (id <= 0)
-                    return BadRequest(new { message = "Geçerli bir sipariş ID'si giriniz." });
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir sipariş ID'si giriniz."));
 
                 var approvedBy = GetCurrentUserId();
                 var command = new UpdateOrderStatusCommand(id, request.Status, approvedBy);
 
                 var result = await _mediator.Send(command);
-                if (!result)
-                    return NotFound(new { message = "Sipariş bulunamadı." });
+                if (!result.Success)
+                    return NotFound(ApiResponse.ErrorResponse(result.Message));
 
-                return Ok(new { message = "Sipariş durumu başarıyla güncellendi." });
+                return Ok(ApiResponse.SuccessResponse(result.Message));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse(ex.Message));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Sipariş durumu güncellenirken bir hata oluştu.", error = ex.Message });
+                return StatusCode(500, ApiResponse.ErrorResponse($"Sipariş durumu güncellenirken bir hata oluştu: {ex.Message}"));
             }
         }
 

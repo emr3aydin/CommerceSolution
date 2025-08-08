@@ -1,4 +1,5 @@
 using MediatR;
+using Commerce.Domain;
 
 namespace Commerce.Application.Features.Orders.Commands
 {
@@ -6,7 +7,7 @@ namespace Commerce.Application.Features.Orders.Commands
         Guid UserId,
         string ShippingAddress,
         List<CreateOrderItemCommand> OrderItems
-    ) : IRequest<int>;
+    ) : IRequest<ApiResponse<int>>; // Changed return type to ApiResponse<int>
 
     public record CreateOrderItemCommand(
         int ProductId,

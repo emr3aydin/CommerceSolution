@@ -1,204 +1,249 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button, Card, CardBody, Image, Chip } from "@heroui/react";
-import { ArrowRight, Truck, Shield, Headphones, Star } from "lucide-react";
-import Layout from "@/components/layout/Layout";
-import ProductCard from "@/components/product/ProductCard";
+import { Card, CardBody, CardFooter } from "@heroui/card";
+import { Image } from "@heroui/image";
+import { Button } from "@heroui/button";
+import { Chip } from "@heroui/chip";
+import { Pagination } from "@heroui/pagination";
+import { productAPI, categoryAPI } from "@/lib/api";
+import { useCart } from "@/contexts/CartContext";
 import { Product, Category } from "@/types";
-import { productService } from "@/services/products";
-import { categoryService } from "@/services/categories";
-import { useRouter } from "next/navigation";
+import { addToast } from "@heroui/toast";
 
 export default function Home() {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const { addToCart } = useCart();
+  
+  const pageSize = 12;
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [productsResponse, categoriesResponse] = await Promise.all([
-          productService.getProducts({ pageSize: 8, isActive: true }),
-          categoryService.getCategories(),
-        ]);
-        
-        setFeaturedProducts(productsResponse);
-        setCategories(categoriesResponse.filter(cat => cat.isActive).slice(0, 6));
-      } catch (error) {
-        console.error("Veri yüklenirken hata oluştu:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadCategories();
+    loadInitialData();
+  }, [currentPage]);
 
-    fetchData();
-  }, []);
+  const loadCategories = async () => {
+    try {
+      const response = await categoryAPI.getAll();
+      if (response.success && response.data) {
+        const categoriesData = response.data as Category[];
+        setCategories(categoriesData);
+        
+        // Kategoriler yüklendiğinde toplam ürün sayısını hesapla
+        const totalProductCount = categoriesData.reduce((total: number, category: Category) => total + category.productCount, 0);
+        setTotalProducts(totalProductCount);
+        setTotalPages(Math.ceil(totalProductCount / pageSize));
+        console.log("Ana sayfa - kategorilerden hesaplanan toplam ürün sayısı:", totalProductCount);
+      }
+    } catch (error) {
+      console.error("Kategoriler yüklenirken hata:", error);
+    }
+  };
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      console.log('LoadInitialData - Starting to load products for page:', currentPage);
+      
+      try {
+        console.log('LoadInitialData - Making API call to products');
+        const productsResponse = await productAPI.getAll({ 
+          pageSize: pageSize, 
+          pageNumber: currentPage,
+          isActive: true 
+        });
+        console.log('LoadInitialData - Products API response:', productsResponse);
+        
+        if (productsResponse.success && productsResponse.data) {
+          const productsData = productsResponse.data as any;
+          console.log('LoadInitialData - Products data:', productsData);
+          
+          // Backend'den paginated response geliyorsa
+          if (productsData.items && Array.isArray(productsData.items)) {
+            setProducts(productsData.items);
+            
+            // Kategorilerden toplam sayıyı al veya API'den gelen sayıyı kullan
+            const totalFromCategories = categories.reduce((total: number, category: Category) => total + category.productCount, 0);
+            if (totalFromCategories > 0) {
+              setTotalProducts(totalFromCategories);
+              setTotalPages(Math.ceil(totalFromCategories / pageSize));
+              console.log("Ana sayfa - kategorilerden pagination:", {
+                totalFromCategories,
+                totalPages: Math.ceil(totalFromCategories / pageSize)
+              });
+            } else {
+              // Kategoriler henüz yüklenmemişse fallback
+              setTotalProducts(productsData.totalCount || 0);
+              setTotalPages(productsData.totalPages || Math.ceil((productsData.totalCount || 0) / pageSize));
+            }
+          } else if (Array.isArray(productsData)) {
+            // Backend'den direkt array geliyorsa
+            setProducts(productsData);
+            const totalFromCategories = categories.reduce((total: number, category: Category) => total + category.productCount, 0);
+            if (totalFromCategories > 0) {
+              setTotalProducts(totalFromCategories);
+              setTotalPages(Math.ceil(totalFromCategories / pageSize));
+            } else {
+              setTotalProducts(productsData.length);
+              setTotalPages(1);
+            }
+          } else {
+            setProducts([]);
+            setTotalProducts(0);
+            setTotalPages(1);
+          }
+          
+          console.log('LoadInitialData - Final products list:', products);
+        }
+      } catch (productError) {
+        console.error("Ürünler yüklenirken hata:", productError);
+        console.error('Product Error details:', {
+          message: productError instanceof Error ? productError.message : 'Unknown error',
+          stack: productError instanceof Error ? productError.stack : undefined,
+        });
+        setProducts([]);
+      }
+      
+    } catch (error) {
+      console.error("Genel veri yükleme hatası:", error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(price);
+  };
+
+  const handleAddToCart = async (product: Product) => {
+    await addToCart(product, 1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-xl">Yükleniyor...</div>
+      </div>
+    );
+  }
 
   return (
-    <Layout>
+    <div className="bg-gray-50 min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Modern E-Ticaret Deneyimi
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              En kaliteli ürünleri en uygun fiyatlarla keşfedin
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
-                color="secondary"
-                onPress={() => router.push('/products')}
-                endContent={<ArrowRight size={20} />}
-              >
-                Alışverişe Başla
-              </Button>
-              <Button 
-                size="lg" 
-                variant="bordered" 
-                className="border-white text-white hover:bg-white hover:text-blue-600"
-                onPress={() => router.push('/categories')}
-              >
-                Kategorileri Keşfet
-              </Button>
-            </div>
-          </div>
+      <section className="bg-white">
+        <div className="container mx-auto px-4 py-12 text-center">
+          <h1 className="text-4xl font-bold mb-4">Hoş Geldiniz</h1>
+          <p className="text-lg text-gray-600 mb-8">
+            En kaliteli ürünleri keşfedin ve online alışverişin keyfini çıkarın
+          </p>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Truck className="text-blue-600" size={32} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Ücretsiz Kargo</h3>
-              <p className="text-gray-600">200 TL ve üzeri alışverişlerde ücretsiz kargo</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Shield className="text-green-600" size={32} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Güvenli Ödeme</h3>
-              <p className="text-gray-600">256-bit SSL şifreleme ile güvenli ödeme</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Headphones className="text-purple-600" size={32} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">7/24 Destek</h3>
-              <p className="text-gray-600">Müşteri hizmetlerimiz her zaman yanınızda</p>
-            </div>
-          </div>
+      {/* Ürünler Section */}
+      <section className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Öne Çıkan Ürünler</h2>
+          {totalProducts > 0 && (
+            <Chip color="primary" variant="flat">
+              {totalProducts} ürün
+            </Chip>
+          )}
         </div>
-      </section>
-
-      {/* Categories Section */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Popüler Kategoriler</h2>
-            <p className="text-gray-600 text-lg">İhtiyacınıza uygun kategoriyi seçin</p>
+        
+        {products.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg">
+            <p className="text-lg text-gray-500">Henüz ürün bulunmuyor.</p>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category) => (
-              <Card 
-                key={category.id} 
-                isPressable
-                className="hover:scale-105 transition-transform cursor-pointer"
-                onPress={() => router.push(`/categories/${category.id}`)}
-              >
-                <CardBody className="p-4 text-center">
-                  <Image
-                    src={category.imageUrl || "/api/placeholder/100/100"}
-                    alt={category.name}
-                    className="w-16 h-16 mx-auto mb-3 rounded-lg object-cover"
-                  />
-                  <h3 className="font-semibold text-sm">{category.name}</h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {category.productCount} ürün
-                  </p>
-                </CardBody>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Products Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Öne Çıkan Ürünler</h2>
-            <p className="text-gray-600 text-lg">En popüler ve en çok satan ürünlerimiz</p>
-          </div>
-          
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, index) => (
-                <Card key={index} className="w-full">
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product) => (
+                <Card key={product.id} className="bg-white hover:shadow-lg transition-shadow">
                   <CardBody className="p-0">
-                    <div className="animate-pulse">
-                      <div className="bg-gray-300 h-48 w-full"></div>
-                      <div className="p-4">
-                        <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                        <div className="h-3 bg-gray-300 rounded mb-4"></div>
-                        <div className="h-6 bg-gray-300 rounded"></div>
-                      </div>
-                    </div>
+                    <Image
+                      src={product.imageUrl || "/placeholder.jpg"}
+                      alt={product.name}
+                      className="w-full object-cover h-[400px] w-[400px] rounded-t-lg "
+                      fallbackSrc="/placeholder.jpg"
+                    />
                   </CardBody>
+                  <CardFooter className="flex flex-col items-start p-4">
+                    <h3 className="font-semibold text-lg mb-2 line-clamp-1">{product.name}</h3>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {product.description}
+                    </p>
+                    
+                    <div className="flex justify-between items-center w-full mb-3">
+                      <span className="text-xl font-bold text-orange-500">
+                        {formatPrice(product.price)}
+                      </span>
+                      <Chip size="sm" color={product.stock > 0 ? "success" : "danger"}>
+                        {product.stock > 0 ? `${product.stock} adet` : "Stokta yok"}
+                      </Chip>
+                    </div>
+                    
+                    <Button
+                      color="primary"
+                      className="w-full bg-orange-500 hover:bg-orange-600"
+                      disabled={product.stock === 0}
+                      onPress={() => handleAddToCart(product)}
+                    >
+                      {product.stock > 0 ? "Sepete Ekle" : "Stokta Yok"}
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+            
+            {/* Debug Info - Her zaman göster */}
+            <div className="bg-gray-100 p-4 rounded-lg text-sm mb-6">
+              <div>Ana Sayfa Debug Bilgileri:</div>
+              <div>Toplam Ürün: {totalProducts}</div>
+              <div>Sayfa Boyutu: {pageSize}</div>
+              <div>Toplam Sayfa: {totalPages}</div>
+              <div>Mevcut Sayfa: {currentPage}</div>
+              <div>Ürün Sayısı: {products.length}</div>
+              <div>Kategoriler yüklendi: {categories.length > 0 ? "Evet" : "Hayır"}</div>
+              {categories.length > 0 && (
+                <div>
+                  Kategori Ürün Sayıları: {categories.map(cat => `${cat.name}: ${cat.productCount}`).join(", ")}
+                </div>
+              )}
             </div>
-          )}
-
-          <div className="text-center mt-12">
-            <Button 
-              size="lg" 
-              color="primary" 
-              variant="bordered"
-              onPress={() => router.push('/products')}
-              endContent={<ArrowRight size={20} />}
-            >
-              Tüm Ürünleri Görüntüle
-            </Button>
-          </div>
-        </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col items-center gap-2 mt-8">
+                <div className="text-sm text-default-500">
+                  Toplam {totalProducts} ürün • Sayfa {currentPage} / {totalPages}
+                </div>
+                <Pagination
+                  total={totalPages}
+                  page={currentPage}
+                  onChange={handlePageChange}
+                  showControls
+                  showShadow
+                  color="primary"
+                />
+              </div>
+            )}
+          </>
+        )}
       </section>
-
-      {/* Newsletter Section */}
-      <section className="py-16 bg-primary text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">Haberdar Olun!</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Yeni ürünler ve kampanyalardan ilk siz haberdar olun
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="E-posta adresiniz"
-              className="flex-1 px-4 py-3 rounded-lg text-gray-900"
-            />
-            <Button color="secondary" size="lg">
-              Abone Ol
-            </Button>
-          </div>
-        </div>
-      </section>
-    </Layout>
+    </div>
   );
 }

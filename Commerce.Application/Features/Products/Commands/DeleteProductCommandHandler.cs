@@ -1,10 +1,11 @@
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; 
 
 namespace Commerce.Application.Features.Products.Commands
 {
-    public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, bool>
+    public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, ApiResponse<bool>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -13,26 +14,25 @@ namespace Commerce.Application.Features.Products.Commands
             _context = context;
         }
 
-        public async Task<bool> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<bool>> Handle(DeleteProductCommand request, CancellationToken cancellationToken) // Updated return type
         {
             var product = await _context.Products
                 .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
 
             if (product == null)
-                return false;
+                return ApiResponse<bool>.ErrorResponse("Ürün bulunamadı.");
 
-            // Sepette veya siparişte olan ürünler silinemez
             var hasActiveReferences = await _context.CartItems
                 .AnyAsync(ci => ci.ProductId == request.Id, cancellationToken) ||
                 await _context.OrderItems
                 .AnyAsync(oi => oi.ProductId == request.Id, cancellationToken);
 
             if (hasActiveReferences)
-                throw new InvalidOperationException("Bu ürün sepetlerde veya siparişlerde kullanıldığı için silinemez.");
+                return ApiResponse<bool>.ErrorResponse("Bu ürün sepetlerde veya siparişlerde kullanıldığı için silinemez.");
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync(cancellationToken);
-            return true;
+            return ApiResponse<bool>.SuccessResponse(true, "Ürün başarıyla silindi.");
         }
     }
 }

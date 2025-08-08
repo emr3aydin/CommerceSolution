@@ -2,10 +2,11 @@ using Commerce.Application.Features.Orders.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Commerce.Domain; // Make sure to include your Domain namespace
 
 namespace Commerce.Application.Features.Orders.Queries
 {
-    public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderDto?>
+    public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, ApiResponse<OrderDto?>> // Updated return type
     {
         private readonly ApplicationDbContext _context;
 
@@ -14,7 +15,7 @@ namespace Commerce.Application.Features.Orders.Queries
             _context = context;
         }
 
-        public async Task<OrderDto?> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
+        public async Task<ApiResponse<OrderDto?>> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken) // Updated return type
         {
             var order = await _context.Orders
                 .Include(o => o.User)
@@ -23,9 +24,9 @@ namespace Commerce.Application.Features.Orders.Queries
                 .FirstOrDefaultAsync(o => o.Id == request.Id, cancellationToken);
 
             if (order == null)
-                return null;
+                return ApiResponse<OrderDto?>.ErrorResponse("Sipariþ bulunamadý.");
 
-            return new OrderDto
+            return ApiResponse<OrderDto?>.SuccessResponse(new OrderDto
             {
                 Id = order.Id,
                 OrderNumber = order.OrderNumber,
@@ -46,7 +47,7 @@ namespace Commerce.Application.Features.Orders.Queries
                     UnitPrice = oi.Price,
                     TotalPrice = oi.Price * oi.Quantity
                 }).ToList()
-            };
+            });
         }
     }
 }

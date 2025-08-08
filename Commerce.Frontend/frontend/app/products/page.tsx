@@ -1,282 +1,229 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Input,
-  Button,
-  Card,
-  CardBody,
-  Chip,
-  Select,
-  SelectItem,
-  Pagination,
-} from "@heroui/react";
-import { Search, Filter, Grid3X3, List } from "lucide-react";
-import Layout from "@/components/layout/Layout";
-import ProductCard from "@/components/product/ProductCard";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Button } from "@heroui/button";
+import { Select, SelectItem } from "@heroui/select";
+import { Chip } from "@heroui/chip";
+import { ShoppingCartIcon } from "@/components/icons";
+import { productAPI, categoryAPI } from "@/lib/api";
+import { useCart } from "@/contexts/CartContext";
+import { addToast } from "@heroui/toast";
 import { Product, Category } from "@/types";
-import { productService } from "@/services/products";
-import { categoryService } from "@/services/categories";
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
   const pageSize = 12;
+  const { addToCart } = useCart();
+
+  const searchTerm = searchParams.get('search') || '';
 
   useEffect(() => {
-    fetchCategories();
+    // URL parametrelerinden kategori değerini al
+    const urlCategory = searchParams.get('category') || '';
+    setSelectedCategory(urlCategory);
+  }, [searchParams]);
+
+  useEffect(() => {
+    loadCategories();
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    loadProducts();
   }, [currentPage, selectedCategory, searchTerm]);
 
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     try {
-      const categoriesData = await categoryService.getCategories();
-      setCategories(categoriesData.filter(cat => cat.isActive));
+      const response = await categoryAPI.getAll();
+      if (response.success && response.data) {
+        setCategories(response.data as Category[]);
+      }
     } catch (error) {
-      console.error("Kategoriler yüklenirken hata oluştu:", error);
+      console.error("Kategoriler yüklenirken hata:", error);
     }
   };
 
-  const fetchProducts = async () => {
+  const loadProducts = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const params = {
         pageNumber: currentPage,
-        pageSize,
+        pageSize: pageSize,
         isActive: true,
-        ...(selectedCategory && { categoryId: parseInt(selectedCategory) }),
         ...(searchTerm && { searchTerm }),
+        ...(selectedCategory && selectedCategory !== "all" && { categoryId: parseInt(selectedCategory) })
       };
+
+      const response = await productAPI.getAll(params);
       
-      const productsData = await productService.getProducts(params);
-      setProducts(productsData);
-      
-      // API'den toplam sayfa sayısı gelmiyor, tahmini hesaplama
-      setTotalPages(Math.ceil(productsData.length / pageSize) || 1);
+      if (response.success && response.data) {
+        // API'den dönen yapıyı kontrol et
+        const data = response.data as any;
+        if (data.items) {
+          setProducts(data.items);
+          setTotalPages(Math.ceil(data.totalCount / pageSize));
+        } else if (Array.isArray(data)) {
+          setProducts(data);
+          setTotalPages(1);
+        } else {
+          setProducts([]);
+          setTotalPages(1);
+        }
+      } else {
+        setProducts([]);
+        setTotalPages(1);
+      }
     } catch (error) {
-      console.error("Ürünler yüklenirken hata oluştu:", error);
+      console.error("Ürünler yüklenirken hata:", error);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
+  const handleAddToCart = async (productId: number) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      await addToCart(product, 1);
+    }
   };
 
-  const handleCategoryChange = (value: string) => {
-    setSelectedCategory(value);
-    setCurrentPage(1);
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(price);
   };
 
-  const clearFilters = () => {
-    setSearchTerm("");
-    setSelectedCategory("");
-    setCurrentPage(1);
-  };
+  if (loading && products.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Ürünler</h1>
-            <p className="text-gray-600">
-              Geniş ürün yelpazemizden size en uygun olanları keşfedin
-            </p>
-          </div>
-        </div>
+    <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Ürünler</h1>
+        <Chip color="primary" variant="flat">
+          {products.length} ürün
+        </Chip>
+      </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Sidebar - Filters */}
-            <div className="lg:w-1/4">
-              <Card className="sticky top-4">
-                <CardBody className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Filtreler</h3>
-                    <Button size="sm" variant="light" onPress={clearFilters}>
-                      Temizle
-                    </Button>
-                  </div>
-
-                  <div className="space-y-6">
-                    {/* Search */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Ürün Ara
-                      </label>
-                      <Input
-                        placeholder="Ürün adı..."
-                        startContent={<Search size={18} />}
-                        value={searchTerm}
-                        onValueChange={handleSearch}
-                        size="sm"
-                      />
-                    </div>
-
-                    {/* Category Filter */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Kategori
-                      </label>
-                      <Select
-                        placeholder="Kategori seçin"
-                        size="sm"
-                        selectedKeys={selectedCategory ? [selectedCategory] : []}
-                        onSelectionChange={(keys) => {
-                          const value = Array.from(keys)[0] as string;
-                          handleCategoryChange(value || "");
-                        }}
-                      >
-                        {categories.map((category) => (
-                          <SelectItem key={category.id.toString()}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </Select>
-                    </div>
-
-                    {/* Active Filters */}
-                    {(searchTerm || selectedCategory) && (
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Aktif Filtreler
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {searchTerm && (
-                            <Chip
-                              size="sm"
-                              variant="flat"
-                              color="primary"
-                              onClose={() => setSearchTerm("")}
-                            >
-                              Arama: {searchTerm}
-                            </Chip>
-                          )}
-                          {selectedCategory && (
-                            <Chip
-                              size="sm"
-                              variant="flat"
-                              color="secondary"
-                              onClose={() => setSelectedCategory("")}
-                            >
-                              {categories.find(c => c.id.toString() === selectedCategory)?.name}
-                            </Chip>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardBody>
-              </Card>
-            </div>
-
-            {/* Main Content */}
-            <div className="lg:w-3/4">
-              {/* Toolbar */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600">
-                    {products.length} ürün gösteriliyor
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  {/* View Mode Toggle */}
-                  <div className="flex items-center border rounded-lg p-1">
-                    <Button
-                      size="sm"
-                      variant={viewMode === "grid" ? "solid" : "light"}
-                      isIconOnly
-                      onPress={() => setViewMode("grid")}
-                    >
-                      <Grid3X3 size={16} />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={viewMode === "list" ? "solid" : "light"}
-                      isIconOnly
-                      onPress={() => setViewMode("list")}
-                    >
-                      <List size={16} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Products Grid */}
-              {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, index) => (
-                    <Card key={index} className="w-full">
-                      <CardBody className="p-0">
-                        <div className="animate-pulse">
-                          <div className="bg-gray-300 h-48 w-full"></div>
-                          <div className="p-4">
-                            <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                            <div className="h-3 bg-gray-300 rounded mb-4"></div>
-                            <div className="h-6 bg-gray-300 rounded"></div>
-                          </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </div>
-              ) : products.length > 0 ? (
-                <>
-                  <div className={`grid gap-6 ${
-                    viewMode === "grid" 
-                      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" 
-                      : "grid-cols-1"
-                  }`}>
-                    {products.map((product) => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex justify-center mt-8">
-                      <Pagination
-                        total={totalPages}
-                        page={currentPage}
-                        onChange={setCurrentPage}
-                        showControls
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-gray-400 text-6xl mb-4">🔍</div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Ürün bulunamadı
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Arama kriterlerinize uygun ürün bulunamadı.
-                  </p>
-                  <Button color="primary" onPress={clearFilters}>
-                    Filtreleri Temizle
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
+      {/* Sadece Kategori Filtresi */}
+      <div className="flex justify-end">
+        <div className="w-full max-w-xs">
+          <Select
+            placeholder="Kategori seçin"
+            selectedKeys={selectedCategory ? [selectedCategory] : []}
+            onSelectionChange={(keys) => {
+              const selected = Array.from(keys)[0] as string;
+              setSelectedCategory(selected);
+            }}
+            items={[{ id: "all", name: "Tüm Kategoriler" }, ...categories]}
+          >
+            {(category) => (
+              <SelectItem key={category.id.toString()}>
+                {category.name}
+              </SelectItem>
+            )}
+          </Select>
         </div>
       </div>
-    </Layout>
+
+      {/* Ürün Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {products.map((product) => (
+          <Card key={product.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-2">
+              <div className="w-full">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-default-200 rounded-lg flex items-center justify-center">
+                    <span className="text-default-500">Resim Yok</span>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardBody className="pt-0">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg line-clamp-2">{product.name}</h3>
+                <p className="text-small text-default-500 line-clamp-2">
+                  {product.description}
+                </p>
+                
+                <div className="flex justify-between items-center">
+                  <Chip size="sm" color="secondary" variant="flat">
+                    {product.categoryName}
+                  </Chip>
+                  <Chip size="sm" color={product.stock > 0 ? "success" : "danger"}>
+                    {product.stock > 0 ? `${product.stock} adet` : "Tükendi"}
+                  </Chip>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-xl font-bold text-primary">
+                    {formatPrice(product.price)}
+                  </span>
+                  <Button
+                    color="primary"
+                    variant="solid"
+                    size="sm"
+                    startContent={<ShoppingCartIcon className="w-4 h-4" />}
+                    onClick={() => handleAddToCart(product.id)}
+                    isDisabled={product.stock === 0}
+                  >
+                    Sepete Ekle
+                  </Button>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
+
+      {/* Navigation */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 pt-6">
+          <Button
+            variant="bordered"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            isDisabled={currentPage === 1}
+          >
+            Önceki
+          </Button>
+          <Chip variant="solid" color="primary">
+            {currentPage} / {totalPages}
+          </Chip>
+          <Button
+            variant="bordered"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            isDisabled={currentPage === totalPages}
+          >
+            Sonraki
+          </Button>
+        </div>
+      )}
+
+      {products.length === 0 && !loading && (
+        <div className="text-center py-12">
+          <p className="text-lg text-default-500">Ürün bulunamadı.</p>
+        </div>
+      )}
+    </div>
   );
 }

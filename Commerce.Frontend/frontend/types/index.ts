@@ -1,25 +1,45 @@
+import { SVGProps } from "react";
+
+export type IconSvgProps = SVGProps<SVGSVGElement> & {
+  size?: number;
+};
+
+// E-ticaret type tanımlamaları
+
 export interface Product {
   id: number;
   name: string;
-  description?: string;
+  description: string;
   price: number;
   stock: number;
-  imageUrl: string;
-  sku: string;
   categoryId: number;
+  categoryName?: string;
   isActive: boolean;
+  imageUrl?: string;
+  sku?: string;
   createdAt: string;
-  category?: Category;
+  updatedAt?: string;
 }
 
 export interface Category {
   id: number;
   name: string;
   description?: string;
-  imageUrl: string;
+  imageUrl?: string;
   isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
   productCount: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  isActive: boolean;
 }
 
 export interface CartItem {
@@ -27,8 +47,7 @@ export interface CartItem {
   productId: number;
   product: Product;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  price: number;
 }
 
 export interface Cart {
@@ -36,9 +55,60 @@ export interface Cart {
   userId: string;
   items: CartItem[];
   totalAmount: number;
-  totalItems: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// Backend'den gelen Cart yapısı
+export interface BackendCart {
+  id: number;
+  userId: string;
+  cartItems: BackendCartItem[];
+  totalAmount: number;
+  totalItems: number;
+}
+
+export interface BackendCartItem {
+  id: number;
+  productId: number;
+  productName: string;
+  productImageUrl: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
+}
+
+export interface Order {
+  id: number;
+  userId: string;
+  totalAmount: number;
+  status: string;
+  orderDate: string;
+  items: OrderItem[];
+}
+
+// Backend'den gelen Order yapısı
+export interface BackendOrder {
+  id: number;
+  orderNumber: string;
+  orderDate: string;
+  totalAmount: number;
+  shippingAddress: string;
+  status: string;
+  createdAt: string;
+  approvedAt: string;
+  userId: string;
+  userName: string;
+  orderItems: BackendOrderItem[];
+}
+
+export interface BackendOrderItem {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
 export interface OrderItem {
@@ -46,49 +116,25 @@ export interface OrderItem {
   productId: number;
   product: Product;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  price: number;
 }
 
-export interface Order {
-  id: number;
-  userId: string;
-  orderNumber: string;
-  status: OrderStatus;
-  totalAmount: number;
-  shippingAddress: string;
-  items: OrderItem[];
-  createdAt: string;
-  updatedAt: string;
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
 }
 
-export enum OrderStatus {
-  Pending = "Pending",
-  Processing = "Processing",
-  Shipped = "Shipped",
-  Delivered = "Delivered",
-  Cancelled = "Cancelled"
+export interface PaginatedResponse<T> {
+  items: T[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
 }
 
-export interface User {
-  id: string;
-  userName: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  gender: string;
-  phoneNumber: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user?: User;
-}
-
-export interface RegisterRequest {
+// API DTO Interfaces
+export interface RegisterDto {
   email: string;
   username: string;
   password: string;
@@ -99,9 +145,20 @@ export interface RegisterRequest {
   phoneNumber: string;
 }
 
-export interface LoginRequest {
+export interface LoginDto {
   email: string;
   password: string;
+}
+
+export interface CreateAdminDto {
+  email: string;
+  username: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  phoneNumber: string;
 }
 
 export interface AddToCartRequest {
@@ -109,17 +166,55 @@ export interface AddToCartRequest {
   quantity: number;
 }
 
-export interface ApiResponse<T = any> {
-  data?: T;
-  message?: string;
-  error?: string;
-  success: boolean;
+export interface CreateCategoryCommand {
+  name: string;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  totalCount: number;
-  pageNumber: number;
-  pageSize: number;
-  totalPages: number;
+export interface UpdateCategoryCommand {
+  id: number;
+  name: string;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
+}
+
+export interface CreateProductCommand {
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  sku: string;
+  categoryId: number;
+  isActive: boolean;
+}
+
+export interface UpdateProductCommand {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  sku: string;
+  categoryId: number;
+  isActive: boolean;
+}
+
+export interface CreateOrderCommand {
+  userId: string;
+  shippingAddress: string;
+  orderItems: CreateOrderItemCommand[];
+}
+
+export interface CreateOrderItemCommand {
+  productId: number;
+  quantity: number;
+}
+
+export interface UpdateOrderStatusRequest {
+  status: string;
 }
