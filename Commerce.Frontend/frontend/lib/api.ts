@@ -256,3 +256,36 @@ export const orderAPI = {
         return apiClient.patch(`/api/Orders/${id}/status`, statusRequest);
     },
 };
+
+// Logs API fonksiyonları
+export const logsAPI = {
+    async getAll(params?: {
+        level?: string;
+        startDate?: string;
+        endDate?: string;
+        pageNumber?: number;
+        pageSize?: number;
+    }) {
+        const query = new URLSearchParams();
+        if (params?.level) query.append('level', params.level);
+        if (params?.startDate) query.append('startDate', params.startDate);
+        if (params?.endDate) query.append('endDate', params.endDate);
+        if (params?.pageNumber) query.append('pageNumber', params.pageNumber.toString());
+        if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+
+        const queryString = query.toString();
+        return apiClient.get(`/api/Logs${queryString ? `?${queryString}` : ''}`);
+    },
+
+    async getById(id: number) {
+        return apiClient.get(`/api/Logs/${id}`);
+    },
+
+    async getStats() {
+        return apiClient.get('/api/Logs/stats');
+    },
+
+    async clearOldLogs(daysToKeep: number = 30) {
+        return apiClient.delete(`/api/Logs/clear?daysToKeep=${daysToKeep}`);
+    },
+};

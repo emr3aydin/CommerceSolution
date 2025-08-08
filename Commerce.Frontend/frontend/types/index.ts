@@ -218,3 +218,30 @@ export interface CreateOrderItemCommand {
 export interface UpdateOrderStatusRequest {
   status: string;
 }
+
+// Log interface'leri
+export interface Log {
+  id: number;
+  message: string;
+  level: string;
+  timestamp: string;
+  exception?: string;
+  properties?: string;
+}
+
+export interface LogStats {
+  totalLogs: number;
+  errorLogs: number;
+  todayLogs: number;
+  thisWeekLogs: number;
+  thisMonthLogs: number;
+  levelDistribution: { level: string; count: number }[];
+}
+
+export interface PaginatedLogsResponse {
+  data: Log[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}

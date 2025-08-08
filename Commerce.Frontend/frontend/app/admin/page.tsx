@@ -116,6 +116,17 @@ export default function AdminDashboard() {
           </CardBody>
         </Card>
 
+        <Card as={NextLink} href="/admin/logs" className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardHeader className="pb-2">
+            <h3 className="text-lg font-semibold">Sistem Logları</h3>
+          </CardHeader>
+          <CardBody>
+            <p className="text-small text-default-500">
+              Sistem loglarını görüntüle ve analiz et
+            </p>
+          </CardBody>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <h3 className="text-lg font-semibold">İstatistikler</h3>
