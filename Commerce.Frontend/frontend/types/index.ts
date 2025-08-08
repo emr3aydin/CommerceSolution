@@ -76,6 +76,7 @@ export interface BackendCartItem {
   unitPrice: number;
   quantity: number;
   totalPrice: number;
+  productStock: number;
 }
 
 export interface Order {

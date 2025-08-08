@@ -18,5 +18,6 @@ namespace Commerce.Application.Features.Carts.DTOs
         public decimal UnitPrice { get; set; }
         public int Quantity { get; set; }
         public decimal TotalPrice { get; set; }
+        public int ProductStock { get; set; }
     }
 }
