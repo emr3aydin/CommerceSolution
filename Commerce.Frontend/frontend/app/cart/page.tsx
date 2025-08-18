@@ -13,6 +13,7 @@ import { useCart } from '@/contexts/CartContext';
 import { ShoppingCartIcon, TrashIcon } from '@/components/icons';
 import { orderAPI, authAPI, productAPI, cartAPI } from '@/lib/api';
 import { CreateOrderCommand } from '@/types';
+import { addToast } from '@heroui/toast';
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, getTotalPrice, getTotalItems, clearCart } = useCart();
@@ -82,10 +83,24 @@ export default function CartPage() {
 
           // Stok kontrolü
           if (productData.stock <= 0) {
+            addToast({
+              title: `${item.product.name} stokta yok!`,
+              description: 'Bu ürünü sepetinizden kaldırıyoruz.',
+              color: 'danger',
+              timeout: 5000,
+              shouldShowTimeoutProgress: true,
+            });
             console.error(`${item.product.name} stokta yok, sepetten kaldırılıyor`);
             await removeFromCart(item.product.id);
             hasStockIssue = true;
           } else if (productData.stock < item.quantity) {
+            addToast({
+              title: `${item.product.name} için stok sorunu!`,
+              description: `Maksimum ${productData.stock} adet alabilirsiniz.`,
+              color: "warning",
+              timeout: 5000,
+              shouldShowTimeoutProgress: true,
+            });
             console.warn(`${item.product.name} için yeterli stok yok. Maksimum ${productData.stock} adet alabilirsiniz. Sepet güncelleniyor...`);
             await updateQuantity(item.product.id, productData.stock);
             hasStockIssue = true;

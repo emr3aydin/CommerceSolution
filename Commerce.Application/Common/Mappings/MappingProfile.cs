@@ -18,7 +18,7 @@ namespace Commerce.Application.Common.Mappings
         public MappingProfile() {
             CreateMap<User, CurrentUserDto>();
 
-            CreateMap<Category, CategoryDto>().ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count));
+            CreateMap<Category, CategoryDto>().ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count)).ReverseMap();
 
             CreateMap<Product, ProductDto>();
 

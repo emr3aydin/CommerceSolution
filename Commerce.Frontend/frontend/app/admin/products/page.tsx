@@ -364,14 +364,16 @@ export default function AdminProductsPage() {
               setSelectedCategory(selected);
             }}
           >
-            <SelectItem key="all">
-              Tüm Kategoriler
-            </SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id.toString()}>
-                {category.name}
-              </SelectItem>
-            ))}
+            {[
+              <SelectItem key="all">
+                Tüm Kategoriler
+              </SelectItem>,
+              ...categories.map((category) => (
+                <SelectItem key={category.id.toString()}>
+                  {category.name}
+                </SelectItem>
+              ))
+            ]}
           </Select>
         </div>
       </div>

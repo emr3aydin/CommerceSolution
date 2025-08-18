@@ -11,7 +11,11 @@ import {
     CreateOrderCommand,
     UpdateOrderStatusRequest,
     ApiResponse,
-    PaginatedProductsResponse
+    PaginatedProductsResponse,
+    TokenResponseDto,
+    RefreshTokenRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
 } from '@/types'; const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
 
 // Temel API istemcisi
@@ -19,6 +23,19 @@ export const apiClient = {
     baseURL: API_BASE_URL,
 
     async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+        // Önce token geçerliliğini kontrol et ve gerekirse yenile
+        if (typeof window !== 'undefined') {
+            const shouldRefresh = await this.shouldRefreshToken(endpoint);
+            if (shouldRefresh) {
+                const refreshed = await this.tryRefreshToken();
+                if (!refreshed) {
+                    // Token yenilenemezse login sayfasına yönlendir
+                    window.location.href = '/login';
+                    throw new Error('Session expired. Please login again.');
+                }
+            }
+        }
+
         const url = `${this.baseURL}${endpoint}`;
 
         const defaultHeaders: Record<string, string> = {
@@ -27,7 +44,7 @@ export const apiClient = {
 
         // Token varsa header'a ekle (sadece browser'da)
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem('accessToken');
             if (token) {
                 defaultHeaders['Authorization'] = `Bearer ${token}`;
             }
@@ -43,6 +60,26 @@ export const apiClient = {
 
         try {
             const response = await fetch(url, config);
+
+            // 401 durumunda token yenilemeyi dene
+            if (response.status === 401 && typeof window !== 'undefined') {
+                const refreshed = await this.tryRefreshToken();
+                if (refreshed) {
+                    // Token yenilendi, request'i tekrar dene
+                    const newToken = localStorage.getItem('accessToken');
+                    if (newToken) {
+                        config.headers = {
+                            ...config.headers,
+                            'Authorization': `Bearer ${newToken}`,
+                        };
+                        return this.request<T>(endpoint, options);
+                    }
+                } else {
+                    // Token yenilenemezse login sayfasına yönlendir
+                    window.location.href = '/login';
+                    throw new Error('Session expired. Please login again.');
+                }
+            }
 
             if (!response.ok) {
                 let errorMessage;
@@ -87,6 +124,61 @@ export const apiClient = {
 
             throw error;
         }
+    },
+
+    // Token yenileme gerekip gerekmediğini kontrol et
+    shouldRefreshToken(endpoint: string): boolean {
+        // Auth endpoint'lerinde token kontrolü yapma
+        if (endpoint.includes('/api/Auth/login') || 
+            endpoint.includes('/api/Auth/register') || 
+            endpoint.includes('/api/Auth/refresh-token') ||
+            endpoint.includes('/api/Auth/forgot-password') ||
+            endpoint.includes('/api/Auth/reset-password')) {
+            return false;
+        }
+
+        const token = localStorage.getItem('accessToken');
+        const expiry = localStorage.getItem('tokenExpiry');
+        
+        if (!token || !expiry) return false;
+
+        // Token 1 dakika içinde expire olacaksa yenile
+        const expiryDate = new Date(expiry);
+        const now = new Date();
+        const oneMinute = 60 * 1000; // 1 dakika ms cinsinden
+        
+        return (expiryDate.getTime() - now.getTime()) < oneMinute;
+    },
+
+    // Token yenilemeyi dene
+    async tryRefreshToken(): Promise<boolean> {
+        try {
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (!refreshToken) return false;
+
+            const response = await fetch(`${this.baseURL}/api/Auth/refresh-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.data) {
+                    const tokenData = data.data as TokenResponseDto;
+                    localStorage.setItem('accessToken', tokenData.accessToken);
+                    localStorage.setItem('refreshToken', tokenData.refreshToken);
+                    localStorage.setItem('tokenExpiry', tokenData.expiresAt);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+        }
+        
+        return false;
     },
 
     get<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -201,11 +293,88 @@ export const authAPI = {
         return apiClient.get('/api/Auth/me');
     },
 
-    async logout() {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userInfo');
+    async refreshToken() {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+            throw new Error('No refresh token available');
         }
+        return apiClient.post<TokenResponseDto>('/api/Auth/refresh-token', { refreshToken });
+    },
+
+    async revokeToken() {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) {
+            throw new Error('No refresh token available');
+        }
+        return apiClient.post('/api/Auth/revoke-token', { refreshToken });
+    },
+
+    async forgotPassword(email: string) {
+        return apiClient.post('/api/Auth/forgot-password', { email });
+    },
+
+    async resetPassword(email: string, resetCode: string, newPassword: string) {
+        return apiClient.post('/api/Auth/reset-password', { 
+            email, 
+            resetCode, 
+            newPassword 
+        });
+    },
+
+    async logout() {
+        try {
+            // Refresh token'ı revoke et
+            await this.revokeToken();
+        } catch (error) {
+            console.warn('Token revoke failed:', error);
+        } finally {
+            // Local storage'ı temizle
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('tokenExpiry');
+                localStorage.removeItem('userInfo');
+            }
+        }
+    },
+
+    // Token yenileme kontrolü
+    isTokenExpired(): boolean {
+        if (typeof window === 'undefined') return true;
+        
+        const expiry = localStorage.getItem('tokenExpiry');
+        if (!expiry) return true;
+        
+        return new Date() >= new Date(expiry);
+    },
+
+    // Otomatik token yenileme
+    async ensureValidToken(): Promise<boolean> {
+        if (typeof window === 'undefined') return false;
+
+        const accessToken = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!accessToken || !refreshToken) return false;
+
+        if (this.isTokenExpired()) {
+            try {
+                const response = await this.refreshToken();
+                if (response.success && response.data) {
+                    const tokenData = response.data as TokenResponseDto;
+                    localStorage.setItem('accessToken', tokenData.accessToken);
+                    localStorage.setItem('refreshToken', tokenData.refreshToken);
+                    localStorage.setItem('tokenExpiry', tokenData.expiresAt);
+                    return true;
+                }
+            } catch (error) {
+                console.error('Token refresh failed:', error);
+                await this.logout();
+                return false;
+            }
+        }
+
+        return true;
     },
 };
 

@@ -10,5 +10,10 @@ namespace Commerce.Application.Features.Users.Interfaces
     public interface IJwtTokenService
     {
         Task<string> GenerateToken(User user);
+        Task<RefreshToken> GenerateRefreshToken(Guid userId, string ipAddress);
+        Task<bool> ValidateRefreshToken(string token);
+        Task<User?> GetUserByRefreshToken(string token);
+        Task RevokeRefreshToken(string token, string ipAddress, string? replacedByToken = null);
+        Task RevokeAllUserRefreshTokens(Guid userId, string ipAddress);
     }
 }

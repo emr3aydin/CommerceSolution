@@ -21,6 +21,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { Logo, ShoppingCartIcon } from "@/components/icons";
 import { CartPreview } from "@/components/cart-preview";
 import { useCart } from "@/contexts/CartContext";
+import { authAPI } from "@/lib/api";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -58,17 +59,23 @@ export const Navbar = () => {
     }
   }, [mounted]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('authToken');
+        // Önce API'dan logout
+        await authAPI.logout();
+      } catch (error) {
+        console.error('Logout API error:', error);
+        // API hatası olsa bile local storage'ı temizle
+      } finally {
+        // Local storage'ı temizle
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('tokenExpiry');
         localStorage.removeItem('userInfo');
         localStorage.removeItem('cart');
         localStorage.removeItem('cartItemCount');
         setUser(null);
-        window.location.href = '/';
-      } catch (error) {
-        console.error('Logout error:', error);
         window.location.href = '/';
       }
     }

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Cart, CartItem as BackendCartItem, BackendCart } from '@/types';
 import { cartAPI, productAPI } from '@/lib/api';
+import { addToast } from '@heroui/toast';
 
 export interface CartItem {
   id: string;
@@ -38,7 +39,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     setMounted(true);
-    // Sayfa yüklendiğinde sepeti yükle (token varsa backend'den, yoksa localStorage'dan)
     refreshCart();
   }, []);
 
@@ -49,7 +49,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('RefreshCart - Token:', token ? 'exists' : 'null');
 
         if (!token) {
-          // Kullanıcı giriş yapmamışsa localStorage'dan yükle
           console.log('RefreshCart - No token, loading from localStorage');
           const savedCart = localStorage.getItem('cart');
           console.log('RefreshCart - Saved cart:', savedCart);
@@ -101,7 +100,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           stack: error instanceof Error ? error.stack : undefined,
           name: error instanceof Error ? error.name : 'Unknown'
         });
-        // Hata durumunda localStorage'dan yükle
+        
         console.log('RefreshCart - Error occurred, falling back to localStorage');
         try {
           const savedCart = localStorage.getItem('cart');
@@ -118,34 +117,55 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = async (product: Product, quantity: number = 1) => {
     try {
-      // Önce stok kontrolü yap
+      
       const productResponse = await productAPI.getById(product.id);
       if (!productResponse.success || !productResponse.data) {
+        addToast({
+              title: `${product.name} bulunamadı!`,
+              description: `Ürün bulunamadı.`,
+              color: "warning",
+              timeout: 5000,
+              shouldShowTimeoutProgress: true,
+            });
         console.error('Ürün bulunamadı');
         return;
       }
 
       const currentProduct = productResponse.data as Product;
 
-      // Stok kontrolü
+      
       if (currentProduct.stock <= 0) {
         console.error('Ürün stokta yok');
+        addToast({
+          title: `${currentProduct.name} stokta yok!`,
+          description: 'Bu ürünü sepete ekleyemezsiniz.',
+          color: 'danger',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
-      // Sepetteki mevcut miktar
+      
       const existingItem = items.find(item => item.product.id === product.id);
       const currentCartQuantity = existingItem ? existingItem.quantity : 0;
       const totalRequestedQuantity = currentCartQuantity + quantity;
 
-      // Toplam istenen miktar stoktan fazla mı?
+      
       if (totalRequestedQuantity > currentProduct.stock) {
         const availableQuantity = currentProduct.stock - currentCartQuantity;
         if (availableQuantity <= 0) {
           console.error('Bu üründen daha fazla ekleyemezsiniz, stok yetersiz');
+          addToast({
+            title: `${currentProduct.name} için stok sorunu!`,
+            description: `Maksimum ${currentProduct.stock} adet alabilirsiniz.`,
+            color: 'warning',
+            timeout: 5000,
+            shouldShowTimeoutProgress: true,
+          });
           return;
         }
-        // Sadece mevcut kadarını ekle
+      
         quantity = availableQuantity;
         console.warn(`Stok yetersiz. Sadece ${quantity} adet eklenebilir.`);
       }
@@ -157,7 +177,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AddToCart - Available stock:', currentProduct.stock);
 
       if (token) {
-        // Backend'e gönder
+        
         console.log('AddToCart - Making API call to add product');
         const response = await cartAPI.addToCart({
           productId: product.id,
@@ -166,19 +186,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AddToCart - API response:', response);
 
         if (response.success) {
-          await refreshCart(); // Sepeti yenile
+          await refreshCart(); 
           console.log(`${product.name} sepete eklendi!`);
+          addToast({
+            title: `${product.name} sepete eklendi!`,
+            description: `Sepetinizde ${quantity} adet ${product.name} var.`,
+            color: 'success',
+            timeout: 5000,
+            shouldShowTimeoutProgress: true,
+          });
         } else {
           throw new Error(response.message);
         }
       } else {
-        // Giriş yapılmadan sepet kullanımını engelle
+  
         console.error('Sepete ürün eklemek için giriş yapmalısınız');
+        addToast({
+          title: 'Giriş yapmalısınız!',
+          description: 'Sepete ürün eklemek için lütfen giriş yapın.',
+          color: 'warning',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
     } catch (error: any) {
       console.error('Add to cart error:', error);
       console.log("Hata: Ürün sepete eklenirken bir hata oluştu!");
+      addToast({
+        title: 'Sepete ekleme hatası!',
+        description: error.message || 'Ürün sepete eklenirken bir hata oluştu.',
+        color: 'danger',
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
@@ -193,12 +234,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (response.success) {
             await refreshCart();
             console.log(`${item.product.name} sepetten kaldırıldı`);
+            addToast({
+              title: `${item.product.name} sepetten kaldırıldı!`,
+              description: 'Ürün sepetinizden başarıyla kaldırıldı.',
+              color: 'success',
+              timeout: 5000,
+              shouldShowTimeoutProgress: true,
+            });
           } else {
             throw new Error(response.message);
           }
         }
       } else {
-        // Local storage'dan kaldır
+     
         setItems(prevItems => {
           const item = prevItems.find(item => item.product.id === productId);
           const newItems = prevItems.filter(item => item.product.id !== productId);
@@ -206,6 +254,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (item) {
             console.log(`${item.product.name} sepetten kaldırıldı`);
+            addToast({
+              title: `${item.product.name} sepetten kaldırıldı!`,
+              description: 'Ürün sepetinizden başarıyla kaldırıldı.',
+              color: 'success',
+              timeout: 5000,
+              shouldShowTimeoutProgress: true,
+            });
           }
 
           return newItems;
@@ -214,6 +269,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.error('Remove from cart error:', error);
       console.log("Hata: Ürün sepetten kaldırılırken bir hata oluştu!");
+      addToast({
+        title: 'Sepetten kaldırma hatası!',
+        description: error.message || 'Ürün sepetten kaldırılırken bir hata oluştu.',
+        color: 'danger',
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
@@ -224,26 +286,47 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // Stok kontrolü yap
+      
       const productResponse = await productAPI.getById(Number(productId));
       if (!productResponse.success || !productResponse.data) {
         console.error('Ürün bulunamadı');
+        addToast({
+          title: 'Ürün bulunamadı!',
+          description: 'Bu ürünü güncelleyemiyoruz.',
+          color: 'warning',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
         return;
       }
 
       const currentProduct = productResponse.data as Product;
 
-      // Stok kontrolü
+     
       if (currentProduct.stock <= 0) {
         console.error('Ürün stokta yok, sepetten kaldırılıyor');
+        addToast({
+          title: `${currentProduct.name} stokta yok!`,
+          description: 'Bu ürünü sepetinizden kaldırıyoruz.',
+          color: 'danger',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
         await removeFromCart(productId);
         return;
       }
 
-      // İstenen miktar stoktan fazla mı?
+      
       if (quantity > currentProduct.stock) {
         console.warn(`Stok yetersiz. Maksimum ${currentProduct.stock} adet alabilirsiniz.`);
-        quantity = currentProduct.stock; // Maksimum stoğa ayarla
+        addToast({
+          title: `${currentProduct.name} için stok sorunu!`,
+          description: `Maksimum ${currentProduct.stock} adet alabilirsiniz.`,
+          color: 'warning',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
+        quantity = currentProduct.stock; 
       }
 
       const token = localStorage.getItem('authToken');
@@ -259,7 +342,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await refreshCart();
         }
       } else {
-        // Giriş yapılmadan sepet güncellenemez
         console.error('Sepeti güncellemek için giriş yapmalısınız');
         return;
       }

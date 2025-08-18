@@ -151,6 +151,27 @@ export interface LoginDto {
   password: string;
 }
 
+export interface TokenResponseDto {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  tokenType: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  resetCode: string;
+  newPassword: string;
+}
+
 export interface CreateAdminDto {
   email: string;
   username: string;

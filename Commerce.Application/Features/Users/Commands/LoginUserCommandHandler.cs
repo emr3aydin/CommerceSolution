@@ -1,17 +1,13 @@
-﻿using Commerce.Domain;
+﻿using Commerce.Application.Features.Users.DTOs;
+using Commerce.Application.Features.Users.Interfaces;
+using Commerce.Domain;
 using Commerce.Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
+using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Commerce.Application.Features.Users.Commands
 {
@@ -19,86 +15,99 @@ namespace Commerce.Application.Features.Users.Commands
     {
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
-        private readonly IConfiguration _configuration;
+        private readonly IJwtTokenService _jwtTokenService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<LoginUserCommandHandler> _logger;
 
-        public LoginUserCommandHandler(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration)
+        public LoginUserCommandHandler(
+            UserManager<User> userManager, 
+            SignInManager<User> signInManager, 
+            IJwtTokenService jwtTokenService,
+            IHttpContextAccessor httpContextAccessor,
+            ILogger<LoginUserCommandHandler> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
-            _configuration = configuration;
+            _jwtTokenService = jwtTokenService;
+            _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<object>> Handle(LoginUserCommand request, CancellationToken cancellationToken)
         {
-            User? user = null;
-
-            bool isEmail = Regex.IsMatch(request.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
-
-            if (isEmail)
+            try
             {
-                user = await _userManager.FindByEmailAsync(request.Email);
+                User? user = null;
+
+                bool isEmail = Regex.IsMatch(request.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+                if (isEmail)
+                {
+                    user = await _userManager.FindByEmailAsync(request.Email);
+                }
+                else
+                {
+                    user = await _userManager.FindByNameAsync(request.Email);
+                }
+
+                if (user == null)
+                {
+                    return ApiResponse<object>.ErrorResponse("Geçersiz kullanıcı adı/email veya şifre.");
+                }
+
+                var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+
+                if (!result.Succeeded)
+                {
+                    return ApiResponse<object>.ErrorResponse("Geçersiz kullanıcı adı/email veya şifre.");
+                }
+
+                if (!user.IsActive)
+                {
+                    return ApiResponse<object>.ErrorResponse("Hesabınız henüz aktif değil. Lütfen hesabınızı onaylayın.");
+                }
+
+                // IP adresini al
+                var ipAddress = GetIpAddress();
+
+                // Kullanıcının mevcut tüm refresh token'larını iptal et (güvenlik için)
+                await _jwtTokenService.RevokeAllUserRefreshTokens(user.Id, ipAddress);
+
+                // Yeni token'lar oluştur
+                var accessToken = await _jwtTokenService.GenerateToken(user);
+                var refreshToken = await _jwtTokenService.GenerateRefreshToken(user.Id, ipAddress);
+
+                var tokenResponse = new TokenResponseDto
+                {
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken.Token,
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                    TokenType = "Bearer"
+                };
+
+                _logger.LogInformation("User {UserId} logged in successfully", user.Id);
+
+                return ApiResponse<object>.SuccessResponse(tokenResponse, "Giriş başarılı.");
             }
-            else
+            catch (Exception ex)
             {
-                user = await _userManager.FindByNameAsync(request.Email);
+                _logger.LogError(ex, "Error during login for email {Email}", request.Email);
+                return ApiResponse<object>.ErrorResponse("Giriş sırasında bir hata oluştu.");
             }
-
-            if (user == null)
-            {
-                return ApiResponse<object>.ErrorResponse("Geçersiz kullanıcı adı/email veya şifre.");
-            }
-
-            var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
-
-            if (!result.Succeeded)
-            {
-                return ApiResponse<object>.ErrorResponse("Geçersiz kullanıcı adı/email veya şifre.");
-            }
-
-            if (!user.IsActive)
-            {
-                return ApiResponse<object>.ErrorResponse("Hesabınız henüz aktif değil. Lütfen hesabınızı onaylayın.");
-            }
-
-            var token = await GenerateJwtToken(user);
-            return ApiResponse<object>.SuccessResponse(new { Token = token }, "Giriş başarılı.");
         }
 
-        private async Task<string> GenerateJwtToken(User user)
+        private string GetIpAddress()
         {
-            var jwtKey = _configuration["Jwt:Key"];
-            if (string.IsNullOrEmpty(jwtKey))
-            {
-                throw new InvalidOperationException("JWT Key is not configured");
-            }
+            var context = _httpContextAccessor.HttpContext;
+            if (context == null) return "unknown";
 
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+            if (context.Request.Headers.ContainsKey("X-Forwarded-For"))
+                return context.Request.Headers["X-Forwarded-For"].ToString().Split(',')[0].Trim();
 
-            var userRoles = await _userManager.GetRolesAsync(user);
+            if (context.Request.Headers.ContainsKey("X-Real-IP"))
+                return context.Request.Headers["X-Real-IP"].ToString();
 
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email!),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
-            };
-
-            foreach (var role in userRoles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(120),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         }
     }
 }

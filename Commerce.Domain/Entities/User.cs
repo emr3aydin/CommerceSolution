@@ -24,6 +24,7 @@ namespace Commerce.Domain.Entities
 
         public virtual Cart? Cart { get; set; }
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
         public virtual ICollection<ApplicationUserRole> UserRoles { get; set; }
 

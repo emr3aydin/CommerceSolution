@@ -26,17 +26,14 @@ namespace Commerce.API.Controllers
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
         {
-            try
-            {
+            
                 var query = _logDbContext.Logs.AsQueryable();
 
-                // Filter by level if provided
                 if (!string.IsNullOrEmpty(level))
                 {
                     query = query.Where(l => l.Level == level);
                 }
 
-                // Filter by date range if provided
                 if (startDate.HasValue)
                 {
                     query = query.Where(l => l.Timestamp >= startDate.Value);
@@ -47,13 +44,10 @@ namespace Commerce.API.Controllers
                     query = query.Where(l => l.Timestamp <= endDate.Value);
                 }
 
-                // Order by timestamp descending (newest first)
                 query = query.OrderByDescending(l => l.Timestamp);
 
-                // Calculate total count for pagination
                 var totalCount = await query.CountAsync();
 
-                // Apply pagination
                 var logs = await query
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
@@ -78,18 +72,14 @@ namespace Commerce.API.Controllers
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Loglar başarıyla getirildi."));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Loglar getirilirken bir hata oluştu: {ex.Message}"));
-            }
+            
+            
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetLogById(int id)
         {
-            try
-            {
+            
                 var log = await _logDbContext.Logs
                     .Where(l => l.Id == id)
                     .Select(l => new
@@ -109,18 +99,13 @@ namespace Commerce.API.Controllers
                 }
 
                 return Ok(ApiResponse<object>.SuccessResponse(log, "Log başarıyla getirildi."));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Log getirilirken bir hata oluştu: {ex.Message}"));
-            }
+           
         }
 
         [HttpGet("stats")]
         public async Task<IActionResult> GetLogStats()
         {
-            try
-            {
+            
                 var today = DateTime.Today;
                 var thisWeek = today.AddDays(-(int)today.DayOfWeek);
                 var thisMonth = new DateTime(today.Year, today.Month, 1);
@@ -139,18 +124,13 @@ namespace Commerce.API.Controllers
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(stats, "Log istatistikleri başarıyla getirildi."));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Log istatistikleri getirilirken bir hata oluştu: {ex.Message}"));
-            }
+            
         }
 
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearOldLogs([FromQuery] int daysToKeep = 30)
         {
-            try
-            {
+            
                 var cutoffDate = DateTime.UtcNow.AddDays(-daysToKeep);
                 var logsToDelete = await _logDbContext.Logs
                     .Where(l => l.Timestamp < cutoffDate)
@@ -160,11 +140,8 @@ namespace Commerce.API.Controllers
                 await _logDbContext.SaveChangesAsync();
 
                 return Ok(ApiResponse.SuccessResponse($"{logsToDelete.Count} adet eski log başarıyla temizlendi."));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ApiResponse.ErrorResponse($"Loglar temizlenirken bir hata oluştu: {ex.Message}"));
-            }
+            
+            
         }
     }
 }

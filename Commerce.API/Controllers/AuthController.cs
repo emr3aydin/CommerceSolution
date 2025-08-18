@@ -1,12 +1,11 @@
-﻿using Commerce.Application.Features.Users.Commands; // For commands
-using Commerce.Application.Features.Users.Queries; // For queries
-using Commerce.Application.Features.Users.DTOs; // For DTOs
+﻿using Commerce.Application.Features.Users.Commands; 
+using Commerce.Application.Features.Users.Queries; 
+using Commerce.Application.Features.Users.DTOs; 
 using Commerce.Domain;
-using MediatR; // Add this using directive
+using MediatR; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims; // For ClaimTypes
-using Commerce.Infrastructure.Interfaces;
+using System.Security.Claims;
 
 namespace Commerce.API.Controllers
 {
@@ -15,12 +14,10 @@ namespace Commerce.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
-        private readonly ILoggingService _loggingService;
 
-        public AuthController(IMediator mediator, ILoggingService loggingService)
+        public AuthController(IMediator mediator)
         {
             _mediator = mediator;
-            _loggingService = loggingService;
         }
 
         [HttpPost("register")]
@@ -43,9 +40,6 @@ namespace Commerce.API.Controllers
                 return BadRequest(response);
             }
 
-            // Log the user registration
-            await _loggingService.LogOperationAsync("REGISTER", "User", registerDto.Email, null, new { Email = registerDto.Email, Username = registerDto.Username });
-
             return Ok(response);
         }
 
@@ -59,9 +53,6 @@ namespace Commerce.API.Controllers
             {
                 return Unauthorized(response);
             }
-
-            // Log the successful login
-            await _loggingService.LogOperationAsync("LOGIN", "User", loginDto.Email, null, new { Email = loginDto.Email });
 
             return Ok(response);
         }
@@ -87,10 +78,6 @@ namespace Commerce.API.Controllers
                 return BadRequest(response);
             }
 
-            // Log the admin creation
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            await _loggingService.LogOperationAsync("CREATE_ADMIN", "User", createAdminDto.Email, userId, new { Email = createAdminDto.Email, Username = createAdminDto.Username });
-
             return Ok(response);
         }
 
@@ -109,13 +96,90 @@ namespace Commerce.API.Controllers
 
             if (!response.Success)
             {
-                // Use appropriate HTTP status based on the error message from the handler
                 if (response.Message == "Kullanıcı bulunamadı.")
                 {
                     return NotFound(response);
                 }
-                return Unauthorized(response); // Or BadRequest, depending on the specific error
+                return Unauthorized(response);
             }
+            return Ok(response);
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
+        {
+            var command = new SendPasswordResetCodeCommand(forgotPasswordDto.Email);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
+        {
+            var command = new ResetPasswordCommand(resetPasswordDto.Email, resetPasswordDto.Code, resetPasswordDto.NewPassword);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto changePasswordDto)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse("Kullanıcı kimliği bulunamadı."));
+            }
+
+            var command = new ChangePasswordCommand(userId, changePasswordDto.CurrentPassword, changePasswordDto.NewPassword);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
+        {
+            var command = new RefreshTokenCommand(refreshTokenDto.RefreshToken);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPost("revoke-token")]
+        [Authorize]
+        public async Task<IActionResult> RevokeToken([FromBody] RefreshTokenDto refreshTokenDto)
+        {
+            var command = new RevokeTokenCommand(refreshTokenDto.RefreshToken);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
             return Ok(response);
         }
     }

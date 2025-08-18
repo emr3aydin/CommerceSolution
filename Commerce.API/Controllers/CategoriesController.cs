@@ -5,7 +5,6 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Commerce.Infrastructure.Interfaces;
 using System.Security.Claims;
 
 namespace Commerce.API.Controllers
@@ -17,12 +16,10 @@ namespace Commerce.API.Controllers
     {
 
         private readonly IMediator _mediator;
-        private readonly ILoggingService _loggingService;
 
-        public CategoriesController(IMediator mediator, ILoggingService loggingService)
+        public CategoriesController(IMediator mediator)
         {
             _mediator = mediator;
-            _loggingService = loggingService;
         }
 
         [HttpGet]
@@ -72,15 +69,10 @@ namespace Commerce.API.Controllers
 
             if (response.Success)
             {
-                // Log the create operation
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                await _loggingService.LogOperationAsync("CREATE", "Category", response.Data, userId, command);
-
                 return Ok(response);
             }
             else
             {
-
                 return BadRequest(response);
             }
         }
@@ -98,10 +90,6 @@ namespace Commerce.API.Controllers
 
             if (response.Success)
             {
-                // Log the update operation
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                await _loggingService.LogOperationAsync("UPDATE", "Category", command.Id, userId, command);
-
                 return Ok(response);
             }
             else
@@ -125,18 +113,10 @@ namespace Commerce.API.Controllers
                 var command = new DeleteCategoryCommand(id);
                 var resp = await _mediator.Send(command);
 
-                if (resp.Success)
-                {
-                    // Log the delete operation
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    await _loggingService.LogOperationAsync("DELETE", "Category", id, userId);
-                }
-
                 return Ok(resp);
             }
             catch (Exception ex)
             {
-
                 if (ex.Message.Contains("bulunamadı"))
                 {
                     return NotFound(ex.Message);

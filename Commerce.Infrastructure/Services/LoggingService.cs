@@ -24,11 +24,13 @@ namespace Commerce.Infrastructure.Services
             {
                 var logEntry = new Log
                 {
-                    Message = $"{action} operation performed on {entityType} with ID: {entityId}",
+                    Message = $"Operation: {action} performed on {entityType} with ID: {entityId}",
+                    MessageTemplate = "Operation: {Action} performed on {EntityType} with ID {EntityId}",
                     Level = "Information",
                     Timestamp = DateTime.UtcNow,
                     Properties = JsonSerializer.Serialize(new
                     {
+                        LogType = "Operation",
                         Action = action,
                         EntityType = entityType,
                         EntityId = entityId,
@@ -54,13 +56,18 @@ namespace Commerce.Infrastructure.Services
                 var logEntry = new Log
                 {
                     Message = message,
+                    MessageTemplate = "Error: {Message}",
                     Level = "Error",
                     Timestamp = DateTime.UtcNow,
                     Exception = exception?.ToString(),
                     Properties = JsonSerializer.Serialize(new
                     {
+                        LogType = "Error",
                         UserId = userId,
                         AdditionalData = additionalData,
+                        ExceptionType = exception?.GetType().Name,
+                        StackTrace = exception?.StackTrace,
+                        InnerException = exception?.InnerException?.Message,
                         Timestamp = DateTime.UtcNow
                     })
                 };
@@ -71,6 +78,39 @@ namespace Commerce.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while logging error to database");
+            }
+        }
+
+        public async Task LogDatabaseAuditAsync(string action, string entityType, string entityId, string? userId = null, object? oldValues = null, object? newValues = null, object? changedColumns = null)
+        {
+            try
+            {
+                var logEntry = new Log
+                {
+                    Message = $"Database Audit: {action} on {entityType} with ID: {entityId}",
+                    MessageTemplate = "Database Audit: {Action} on {EntityType} with ID {EntityId}",
+                    Level = "Information",
+                    Timestamp = DateTime.UtcNow,
+                    Properties = JsonSerializer.Serialize(new
+                    {
+                        LogType = "DatabaseAudit",
+                        Action = action,
+                        EntityType = entityType,
+                        EntityId = entityId,
+                        UserId = userId,
+                        OldValues = oldValues,
+                        NewValues = newValues,
+                        ChangedColumns = changedColumns,
+                        Timestamp = DateTime.UtcNow
+                    })
+                };
+
+                await _logDbContext.Logs.AddAsync(logEntry);
+                await _logDbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while logging database audit to database");
             }
         }
     }
