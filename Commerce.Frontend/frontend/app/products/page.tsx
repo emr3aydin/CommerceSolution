@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Select, SelectItem } from "@heroui/select";
 import { Chip } from "@heroui/chip";
+import NextLink from "next/link";
 import { ShoppingCartIcon } from "@/components/icons";
 import { productAPI, categoryAPI } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
@@ -156,25 +157,31 @@ export default function ProductsPage() {
       {/* Ürün Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => (
-          <Card key={product.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <div className="w-full">
-                {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-default-200 rounded-lg flex items-center justify-center">
-                    <span className="text-default-500">Resim Yok</span>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
+          <Card key={product.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <NextLink href={`/products/${product.id}`}>
+              <CardHeader className="pb-2">
+                <div className="w-full">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-default-200 rounded-lg flex items-center justify-center">
+                      <span className="text-default-500">Resim Yok</span>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+            </NextLink>
             <CardBody className="pt-0">
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg line-clamp-2">{product.name}</h3>
+                <NextLink href={`/products/${product.id}`}>
+                  <h3 className="font-semibold text-lg line-clamp-2 hover:text-primary transition-colors">
+                    {product.name}
+                  </h3>
+                </NextLink>
                 <p className="text-small text-default-500 line-clamp-2">
                   {product.description}
                 </p>
@@ -192,16 +199,27 @@ export default function ProductsPage() {
                   <span className="text-xl font-bold text-primary">
                     {formatPrice(product.price)}
                   </span>
-                  <Button
-                    color="primary"
-                    variant="solid"
-                    size="sm"
-                    startContent={<ShoppingCartIcon className="w-4 h-4" />}
-                    onClick={() => handleAddToCart(product.id)}
-                    isDisabled={product.stock === 0}
-                  >
-                    Sepete Ekle
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      as={NextLink}
+                      href={`/products/${product.id}`}
+                      color="primary"
+                      variant="bordered"
+                      size="sm"
+                    >
+                      Detay
+                    </Button>
+                    <Button
+                      color="primary"
+                      variant="solid"
+                      size="sm"
+                      startContent={<ShoppingCartIcon className="w-4 h-4" />}
+                      onClick={() => handleAddToCart(product.id)}
+                      isDisabled={product.stock === 0}
+                    >
+                      Sepete Ekle
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardBody>

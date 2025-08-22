@@ -40,22 +40,89 @@ export const Navbar = () => {
   }, [items, mounted, getTotalItems]); // items array'ini direkt dinle
 
   useEffect(() => {
+    console.log('🏗️ Navbar: Component mounted, setting mounted to true');
     setMounted(true);
   }, []);
 
   useEffect(() => {
     // Sadece mount edildikten sonra localStorage'a eriş
+    console.log('⚙️ Navbar: Second useEffect triggered, mounted:', mounted);
     if (mounted && typeof window !== 'undefined') {
-      try {
-        const userInfo = localStorage.getItem('userInfo');
-        if (userInfo && userInfo !== 'undefined') {
-          setUser(JSON.parse(userInfo));
+      console.log('✅ Navbar: Setting up event listeners and initial check');
+      const checkUserInfo = () => {
+        console.log('🔍 Navbar: checkUserInfo called');
+        try {
+          const userInfo = localStorage.getItem('userInfo');
+          const accessToken = localStorage.getItem('accessToken');
+          
+          console.log('🔍 Navbar auth state:', { 
+            hasUserInfo: !!userInfo, 
+            hasAccessToken: !!accessToken,
+            currentUser: user?.firstName || 'none'
+          });
+          
+          if (userInfo && userInfo !== 'undefined' && accessToken) {
+            const parsedUser = JSON.parse(userInfo);
+            console.log('✅ Navbar: Setting user to:', parsedUser.firstName);
+            setUser(parsedUser);
+          } else {
+            console.log('❌ Navbar: Clearing user');
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('❌ Navbar localStorage error:', error);
+          localStorage.removeItem('userInfo');
+          setUser(null);
         }
-      } catch (error) {
-        console.error('localStorage error:', error);
-        // localStorage hatası durumunda temizle
-        localStorage.removeItem('userInfo');
-      }
+      };
+
+      // İlk yükleme
+      console.log('🎯 Navbar: Calling initial checkUserInfo');
+      checkUserInfo();
+
+      // localStorage değişikliklerini dinle
+      const handleStorageChange = (e: StorageEvent) => {
+        console.log('📦 Navbar: Storage event detected:', e.key);
+        if (e.key === 'userInfo' || e.key === 'accessToken') {
+          console.log('🔄 Navbar: Auth-related storage change, checking user info...');
+          checkUserInfo();
+        }
+      };
+
+      // Custom event listener (same-page localStorage changes için)
+      const handleCustomStorageChange = () => {
+        console.log('🎯 Navbar: Custom storage change event');
+        checkUserInfo();
+      };
+
+      // Force update event listener
+      const handleForceUpdate = (e: any) => {
+        console.log('🔄 Navbar: Force update event', e.detail);
+        if (e.detail) {
+          setUser(e.detail);
+        } else {
+          checkUserInfo();
+        }
+      };
+
+      // Periyodik kontrol (fallback olarak)
+      console.log('⏰ Navbar: Setting up interval check every 1000ms');
+      const interval = setInterval(checkUserInfo, 1000);
+
+      console.log('👂 Navbar: Adding event listeners');
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('userInfoChanged', handleCustomStorageChange);
+      window.addEventListener('forceNavbarUpdate', handleForceUpdate);
+
+      return () => {
+        console.log('🧹 Navbar: Cleaning up event listeners and interval');
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('userInfoChanged', handleCustomStorageChange);
+        window.removeEventListener('forceNavbarUpdate', handleForceUpdate);
+        clearInterval(interval);
+      };
+    } else {
+      console.log('⏳ Navbar: Waiting for mount or window, mounted:', mounted, 'window:', typeof window);
     }
   }, [mounted]);
 
@@ -76,6 +143,10 @@ export const Navbar = () => {
         localStorage.removeItem('cart');
         localStorage.removeItem('cartItemCount');
         setUser(null);
+        
+        // Navbar'ın güncellendiğini diğer component'lere bildir
+        window.dispatchEvent(new Event('userInfoChanged'));
+        
         window.location.href = '/';
       }
     }

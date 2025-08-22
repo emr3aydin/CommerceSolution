@@ -19,27 +19,103 @@ export const TrendyolHeader = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
+    console.log('🏗️ TrendyolHeader: Component mounted, setting mounted to true');
     setMounted(true);
     loadCategories();
   }, []);
 
   useEffect(() => {
     if (mounted && typeof window !== 'undefined') {
-      try {
-        const userInfo = localStorage.getItem('userInfo');
-        if (userInfo && userInfo !== 'undefined') {
-          setUser(JSON.parse(userInfo));
+      const checkUserInfo = () => {
+        console.log('🔍 TrendyolHeader: checkUserInfo called');
+        try {
+          const userInfo = localStorage.getItem('userInfo');
+          const accessToken = localStorage.getItem('accessToken');
+          
+          console.log('🔍 TrendyolHeader auth state:', { 
+            hasUserInfo: !!userInfo, 
+            hasAccessToken: !!accessToken,
+            currentUser: user?.firstName || 'none'
+          });
+          
+          if (userInfo && userInfo !== 'undefined' && accessToken) {
+            const parsedUser = JSON.parse(userInfo);
+            console.log('✅ TrendyolHeader: Setting user to:', parsedUser.firstName);
+            setUser(parsedUser);
+          } else {
+            console.log('❌ TrendyolHeader: Clearing user');
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('❌ TrendyolHeader localStorage error:', error);
+          localStorage.removeItem('userInfo');
+          setUser(null);
         }
+      };
 
-        const cartCount = localStorage.getItem('cartItemCount');
-        if (cartCount && cartCount !== 'undefined') {
-          setCartItemCount(parseInt(cartCount));
+      const checkCartInfo = () => {
+        console.log('🛒 TrendyolHeader: checkCartInfo called');
+        try {
+          const cartCount = localStorage.getItem('cartItemCount');
+          const newCount = cartCount && cartCount !== 'undefined' ? parseInt(cartCount) : 0;
+          console.log('🛒 TrendyolHeader: Cart count:', newCount);
+          setCartItemCount(newCount);
+        } catch (error) {
+          console.error('❌ TrendyolHeader cart localStorage error:', error);
+          localStorage.removeItem('cartItemCount');
+          setCartItemCount(0);
         }
-      } catch (error) {
-        console.error('localStorage error:', error);
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('cartItemCount');
-      }
+      };
+
+      // İlk yükleme
+      console.log('🎯 TrendyolHeader: Calling initial checkUserInfo and checkCartInfo');
+      checkUserInfo();
+      checkCartInfo();
+
+      // Event listener'ları ekle
+      const handleStorageChange = (e: StorageEvent) => {
+        console.log('📦 TrendyolHeader: Storage event detected:', e.key);
+        if (e.key === 'userInfo' || e.key === 'accessToken') {
+          console.log('🔄 TrendyolHeader: Auth-related storage change, checking user info...');
+          checkUserInfo();
+        } else if (e.key === 'cartItemCount') {
+          console.log('🛒 TrendyolHeader: Cart-related storage change, checking cart info...');
+          checkCartInfo();
+        }
+      };
+
+      const handleCustomStorageChange = () => {
+        console.log('🎯 TrendyolHeader: Custom storage change event');
+        checkUserInfo();
+      };
+
+      const handleCartUpdate = () => {
+        console.log('🛒 TrendyolHeader: Cart update event');
+        checkCartInfo();
+      };
+
+      const handleForceUpdate = (e: any) => {
+        console.log('🔄 TrendyolHeader: Force update event', e.detail);
+        if (e.detail) {
+          setUser(e.detail);
+        } else {
+          checkUserInfo();
+        }
+      };
+
+      console.log('👂 TrendyolHeader: Adding event listeners');
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('userInfoChanged', handleCustomStorageChange);
+      window.addEventListener('forceNavbarUpdate', handleForceUpdate);
+      window.addEventListener('cartUpdated', handleCartUpdate);
+
+      return () => {
+        console.log('🧹 TrendyolHeader: Cleaning up event listeners');
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('userInfoChanged', handleCustomStorageChange);
+        window.removeEventListener('forceNavbarUpdate', handleForceUpdate);
+        window.removeEventListener('cartUpdated', handleCartUpdate);
+      };
     }
   }, [mounted]);
 

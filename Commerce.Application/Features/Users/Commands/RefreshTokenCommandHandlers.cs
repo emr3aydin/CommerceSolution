@@ -1,7 +1,8 @@
 using Commerce.Application.Features.Users.Commands;
 using Commerce.Application.Features.Users.DTOs;
-using Commerce.Application.Features.Users.Interfaces;
-using Commerce.Domain;
+using Commerce.Infrastructure.Interfaces;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -56,7 +57,7 @@ namespace Commerce.Application.Features.Users.Commands
                 {
                     AccessToken = newAccessToken,
                     RefreshToken = newRefreshToken.Token,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(60),
                     TokenType = "Bearer"
                 };
 
@@ -144,3 +145,5 @@ namespace Commerce.Application.Features.Users.Commands
         }
     }
 }
+
+

@@ -4,7 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Commerce.Domain; 
+using Commerce.Core.Common; 
 using Commerce.Application.Features.Orders.DTOs;
 
 namespace Commerce.API.Controllers

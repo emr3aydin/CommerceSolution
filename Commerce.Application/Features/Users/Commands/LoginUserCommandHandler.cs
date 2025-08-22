@@ -1,6 +1,8 @@
-﻿using Commerce.Application.Features.Users.DTOs;
-using Commerce.Application.Features.Users.Interfaces;
-using Commerce.Domain;
+using Commerce.Application.Features.Users.DTOs;
+using Commerce.Application.Features.Users.Queries;
+using Commerce.Infrastructure.Interfaces;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using Commerce.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -37,9 +39,14 @@ namespace Commerce.Application.Features.Users.Commands
         {
             try
             {
+                _logger.LogInformation("=== LOGIN ATTEMPT START ===");
+                _logger.LogInformation("Login attempt for: {Email}", request.Email);
+                _logger.LogInformation("IP Address: {IpAddress}", GetIpAddress());
+
                 User? user = null;
 
                 bool isEmail = Regex.IsMatch(request.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+                _logger.LogInformation("Input type: {InputType}", isEmail ? "Email" : "Username");
 
                 if (isEmail)
                 {
@@ -52,47 +59,74 @@ namespace Commerce.Application.Features.Users.Commands
 
                 if (user == null)
                 {
-                    return ApiResponse<object>.ErrorResponse("Geçersiz kullanıcı adı/email veya şifre.");
+                    _logger.LogWarning("User not found for: {Email}", request.Email);
+                    return ApiResponse<object>.ErrorResponse("Ge�ersiz kullanici adi/email veya sifre.");
                 }
 
+                _logger.LogInformation("User found: {UserId} - {UserName} - Active: {IsActive}", 
+                    user.Id, user.UserName, user.IsActive);
+
                 var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+                _logger.LogInformation("Password check result: Succeeded={Succeeded}, IsLockedOut={IsLockedOut}, RequiresTwoFactor={RequiresTwoFactor}", 
+                    result.Succeeded, result.IsLockedOut, result.RequiresTwoFactor);
 
                 if (!result.Succeeded)
                 {
-                    return ApiResponse<object>.ErrorResponse("Geçersiz kullanıcı adı/email veya şifre.");
+                    if (result.IsLockedOut)
+                    {
+                        _logger.LogWarning("User {UserId} is locked out", user.Id);
+                        return ApiResponse<object>.ErrorResponse("Hesabiniz ge�ici olarak kilitlendi. L�tfen daha sonra tekrar deneyin.");
+                    }
+                    
+                    _logger.LogWarning("Invalid password for user {UserId}", user.Id);
+                    return ApiResponse<object>.ErrorResponse("Ge�ersiz kullanici adi/email veya sifre.");
                 }
 
                 if (!user.IsActive)
                 {
-                    return ApiResponse<object>.ErrorResponse("Hesabınız henüz aktif değil. Lütfen hesabınızı onaylayın.");
+                    _logger.LogWarning("User {UserId} is not active", user.Id);
+                    return ApiResponse<object>.ErrorResponse("Hesabiniz hen�z aktif degil. L�tfen hesabinizi onaylayin.");
                 }
 
                 // IP adresini al
                 var ipAddress = GetIpAddress();
+                _logger.LogInformation("Processing login for user {UserId} from IP {IpAddress}", user.Id, ipAddress);
 
-                // Kullanıcının mevcut tüm refresh token'larını iptal et (güvenlik için)
+                // Kullanicinin mevcut t�m refresh token'larini iptal et (g�venlik i�in)
                 await _jwtTokenService.RevokeAllUserRefreshTokens(user.Id, ipAddress);
+                _logger.LogInformation("Revoked all existing refresh tokens for user {UserId}", user.Id);
 
-                // Yeni token'lar oluştur
+                // Yeni token'lar olustur
                 var accessToken = await _jwtTokenService.GenerateToken(user);
                 var refreshToken = await _jwtTokenService.GenerateRefreshToken(user.Id, ipAddress);
+
+                if (string.IsNullOrEmpty(accessToken) || refreshToken == null)
+                {
+                    _logger.LogError("Failed to generate tokens for user {UserId}", user.Id);
+                    return ApiResponse<object>.ErrorResponse("Token olusturulamadi. L�tfen tekrar deneyin.");
+                }
+
+                _logger.LogInformation("Generated new tokens for user {UserId}. AccessToken length: {AccessTokenLength}, RefreshToken: {RefreshTokenId}", 
+                    user.Id, accessToken.Length, refreshToken.Id);
 
                 var tokenResponse = new TokenResponseDto
                 {
                     AccessToken = accessToken,
                     RefreshToken = refreshToken.Token,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(60),
                     TokenType = "Bearer"
                 };
 
-                _logger.LogInformation("User {UserId} logged in successfully", user.Id);
+                _logger.LogInformation("=== LOGIN SUCCESS === User {UserId} logged in successfully. Token expires at: {ExpiresAt}", 
+                    user.Id, tokenResponse.ExpiresAt);
 
-                return ApiResponse<object>.SuccessResponse(tokenResponse, "Giriş başarılı.");
+                return ApiResponse<object>.SuccessResponse(tokenResponse, "Giris basarili.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login for email {Email}", request.Email);
-                return ApiResponse<object>.ErrorResponse("Giriş sırasında bir hata oluştu.");
+                _logger.LogError(ex, "=== LOGIN ERROR === Error during login for email {Email}. Exception: {ExceptionMessage}", 
+                    request.Email, ex.Message);
+                return ApiResponse<object>.ErrorResponse("Giris sirasinda bir hata olustu.");
             }
         }
 
@@ -111,3 +145,5 @@ namespace Commerce.Application.Features.Users.Commands
         }
     }
 }
+
+

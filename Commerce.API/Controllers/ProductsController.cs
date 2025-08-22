@@ -1,9 +1,9 @@
-ï»¿using Commerce.Application.Features.Products.Commands;
+using Commerce.Application.Features.Products.Commands;
 using Commerce.Application.Features.Products.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Commerce.Domain;
+using Commerce.Core.Common;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
@@ -48,7 +48,7 @@ namespace Commerce.API.Controllers
             
                 if (id <= 0)
                 {
-                    return BadRequest(ApiResponse.ErrorResponse("GeÃ§erli bir Ã¼rÃ¼n ID'si giriniz."));
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir ürün ID'si giriniz."));
                 }
 
                 var result = await _mediator.Send(new GetProductByIdQuery(id));
@@ -81,20 +81,20 @@ namespace Commerce.API.Controllers
         {
                 if (id != command.Id)
                 {
-                    return BadRequest(ApiResponse.ErrorResponse("URL'deki ID ile komuttaki ID eÅŸleÅŸmiyor."));
+                    return BadRequest(ApiResponse.ErrorResponse("URL'deki ID ile komuttaki ID eslesmiyor."));
                 }
 
                 var result = await _mediator.Send(command);
                 if (!result.Success)
                 {
-                    if (result.Message == "ÃœrÃ¼n bulunamadÄ±.") // Specific check for NotFound scenario
+                    if (result.Message == "Ürün bulunamadi.") // Specific check for NotFound scenario
                     {
                         return NotFound(ApiResponse.ErrorResponse(result.Message));
                     }
                     return BadRequest(ApiResponse.ErrorResponse(result.Message));
                 }
 
-                return Ok(ApiResponse.SuccessResponse("ÃœrÃ¼n baÅŸarÄ±yla gÃ¼ncellendi."));
+                return Ok(ApiResponse.SuccessResponse("Ürün basariyla güncellendi."));
           
         }
 
@@ -104,13 +104,13 @@ namespace Commerce.API.Controllers
         {
                 if (id <= 0)
                 {
-                    return BadRequest(ApiResponse.ErrorResponse("GeÃ§erli bir Ã¼rÃ¼n ID'si giriniz."));
+                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir ürün ID'si giriniz."));
                 }
 
                 var result = await _mediator.Send(new DeleteProductCommand(id));
                 if (!result.Success)
                 {
-                    if (result.Message == "ÃœrÃ¼n bulunamadÄ±.") 
+                    if (result.Message == "Ürün bulunamadi.") 
                     {
                         return NotFound(ApiResponse.ErrorResponse(result.Message));
                     }

@@ -2,7 +2,8 @@ using Commerce.Application.Features.Carts.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Carts.Queries
 {
@@ -51,3 +52,4 @@ namespace Commerce.Application.Features.Carts.Queries
         }
     }
 }
+

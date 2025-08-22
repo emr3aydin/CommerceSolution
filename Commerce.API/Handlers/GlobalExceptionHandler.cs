@@ -1,4 +1,4 @@
-﻿using Commerce.Domain;
+using Commerce.Core.Common;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using Commerce.Infrastructure.Interfaces;
@@ -29,18 +29,18 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        _logger.LogError(exception, "Beklenmeyen bir hata oluştu: {Message}", exception.Message);
+        _logger.LogError(exception, "Beklenmeyen bir hata olustu: {Message}", exception.Message);
 
         await LogExceptionToDatabaseAsync(exception, httpContext);
 
         var problemDetails = new ProblemDetails
         {
             Status = StatusCodes.Status500InternalServerError,
-            Title = "Sunucu Hatası",
-            Detail = "İşleminiz sırasında beklenmeyen bir hata oluştu. Lütfen daha sonra yeniden deneyin"
+            Title = "Sunucu Hatasi",
+            Detail = "Isleminiz sirasinda beklenmeyen bir hata olustu. L�tfen daha sonra yeniden deneyin"
         };
 
-        var response = ApiResponse.ErrorResponse("Sunucu hatası oluştu.");
+        var response = ApiResponse.ErrorResponse("Sunucu hatasi olustu.");
 
         httpContext.Response.ContentType = "application/json";
         httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
@@ -79,7 +79,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         }
         catch (Exception ex)
         {
-            _logger.LogCritical(ex, "Hatanın veritabanına loglanması sırasında bir hata oluştu");
+            _logger.LogCritical(ex, "Hatanin veritabanina loglanmasi sirasinda bir hata olustu");
         }
     }
 }

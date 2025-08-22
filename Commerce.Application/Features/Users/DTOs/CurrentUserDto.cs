@@ -9,13 +9,15 @@ namespace Commerce.Application.Features.Users.DTOs
     public record CurrentUserDto
     {
         public Guid Id { get; init; }
-        public string Email { get; init; }
-        public string UserName { get; init; }
-        public string FirstName { get; init; }
-        public string LastName { get; init; }
-        public DateTime DateOfBirth { get; init; }
-        public string Gender { get; init; }
-        public string PhoneNumber { get; init; }
-        public IList<string> Roles { get; init; }
+        public string Email { get; init; } = string.Empty;
+        public string UserName { get; init; } = string.Empty;
+        public string FirstName { get; init; } = string.Empty;
+        public string LastName { get; init; } = string.Empty;
+        public DateTime? DateOfBirth { get; init; }
+        public string? Gender { get; init; }
+        public string? PhoneNumber { get; init; }
+        public bool IsActive { get; init; }
+        public DateTime CreatedAt { get; init; }
+        public IList<string> Roles { get; init; } = new List<string>();
     }
 }

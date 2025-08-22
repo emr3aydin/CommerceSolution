@@ -1,5 +1,6 @@
-﻿using Commerce.Application.Features.Users.DTOs;
-using Commerce.Domain;
+using Commerce.Application.Features.Users.DTOs;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using Commerce.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -25,7 +26,7 @@ namespace Commerce.Application.Features.Users.Queries
             var user = await _userManager.FindByIdAsync(request.UserId);
             if (user == null)
             {
-                return ApiResponse<CurrentUserDto>.ErrorResponse("Kullanıcı bulunamadı.");
+                return ApiResponse<CurrentUserDto>.ErrorResponse("Kullanici bulunamadi.");
             }
 
             var roles = await _userManager.GetRolesAsync(user);
@@ -33,17 +34,21 @@ namespace Commerce.Application.Features.Users.Queries
             var userResponseDto = new CurrentUserDto
             {
                 Id = user.Id,
-                Email = user.Email,
-                UserName = user.UserName,
+                Email = user.Email ?? string.Empty,
+                UserName = user.UserName ?? string.Empty,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 DateOfBirth = user.DateOfBirth,
                 Gender = user.Gender,
                 PhoneNumber = user.PhoneNumber,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
                 Roles = roles
             };
 
-            return ApiResponse<CurrentUserDto>.SuccessResponse(userResponseDto, "Kullanıcı bilgileri başarıyla getirildi.");
+            return ApiResponse<CurrentUserDto>.SuccessResponse(userResponseDto, "Kullanici bilgileri basariyla getirildi.");
         }
     }
 }
+
+

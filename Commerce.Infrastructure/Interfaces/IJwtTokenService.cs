@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Commerce.Application.Features.Users.Interfaces
+namespace Commerce.Infrastructure.Interfaces
 {
     public interface IJwtTokenService
     {

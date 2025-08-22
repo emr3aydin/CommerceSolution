@@ -36,6 +36,7 @@ namespace Commerce.Infrastructure.Persistence
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<PasswordResetCode> PasswordResetCodes { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<EmailVerification> EmailVerifications { get; set; }
 
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -212,7 +213,7 @@ namespace Commerce.Infrastructure.Persistence
             .HasIndex(c => c.UserId)
             .IsUnique();
 
-            builder.Entity<CartItem>().HasIndex(c => c.ProductId).IsUnique();
+            builder.Entity<CartItem>().HasIndex(c => new { c.CartId, c.ProductId }).IsUnique();
 
             builder.Entity<Order>().HasIndex(c=> c.OrderNumber).IsUnique();
 

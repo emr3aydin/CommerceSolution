@@ -2,7 +2,7 @@ using Commerce.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain;
+using Commerce.Core.Common;
 
 namespace Commerce.API.Controllers
 {
@@ -145,3 +145,4 @@ namespace Commerce.API.Controllers
         }
     }
 }
+

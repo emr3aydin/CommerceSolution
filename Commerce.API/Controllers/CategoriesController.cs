@@ -1,6 +1,6 @@
-﻿using Commerce.Application.Features.Categories.Commands;
+using Commerce.Application.Features.Categories.Commands;
 using Commerce.Application.Features.Categories.Queries;
-using Commerce.Domain;
+using Commerce.Core.Common;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -39,7 +39,7 @@ namespace Commerce.API.Controllers
         {
             if (id <= 0)
             {
-                return BadRequest("Geçersiz kategori ID'si.");
+                return BadRequest("Ge�ersiz kategori ID'si.");
             }
 
             var query = new GetCategoryByIdQuery(id);
@@ -47,7 +47,7 @@ namespace Commerce.API.Controllers
 
             if (category == null)
             {
-                return NotFound($"ID'si {id} olan kategori bulunamadı.");
+                return NotFound($"ID'si {id} olan kategori bulunamadi.");
             }
 
             return Ok(category);
@@ -83,7 +83,7 @@ namespace Commerce.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(command.Name))
             {
-                return BadRequest(ApiResponse.ErrorResponse("Kategori adı boş olamaz."));
+                return BadRequest(ApiResponse.ErrorResponse("Kategori adi bos olamaz."));
             }
 
             var response = await _mediator.Send(command);
@@ -105,7 +105,7 @@ namespace Commerce.API.Controllers
         {
             if (id <= 0)
             {
-                return BadRequest("Geçersiz kategori ID'si.");
+                return BadRequest("Ge�ersiz kategori ID'si.");
             }
 
             try
@@ -117,11 +117,11 @@ namespace Commerce.API.Controllers
             }
             catch (Exception ex)
             {
-                if (ex.Message.Contains("bulunamadı"))
+                if (ex.Message.Contains("bulunamadi"))
                 {
                     return NotFound(ex.Message);
                 }
-                return StatusCode(500, $"Kategori silinirken bir hata oluştu: {ex.Message}");
+                return StatusCode(500, $"Kategori silinirken bir hata olustu: {ex.Message}");
             }
         }
 
@@ -129,3 +129,4 @@ namespace Commerce.API.Controllers
 
     }
 }
+

@@ -1,6 +1,7 @@
-﻿using Commerce.Application.Features.Products.DTOs;
+using Commerce.Application.Features.Products.DTOs;
 using MediatR;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 namespace Commerce.Application.Features.Products.Queries
 {
     public record GetAllProductsQuery(
@@ -11,3 +12,4 @@ namespace Commerce.Application.Features.Products.Queries
         int PageSize = 10
     ) : IRequest<ApiResponse<PaginatedProductsResponse>>;
 }
+

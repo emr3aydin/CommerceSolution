@@ -1,7 +1,7 @@
-﻿using Commerce.Application.Features.Users.Commands; 
+using Commerce.Application.Features.Users.Commands; 
 using Commerce.Application.Features.Users.Queries; 
 using Commerce.Application.Features.Users.DTOs; 
-using Commerce.Domain;
+using Commerce.Core.Common;
 using MediatR; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -88,7 +88,7 @@ namespace Commerce.API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null)
             {
-                return Unauthorized(ApiResponse.ErrorResponse("Kullanıcı kimliği bulunamadı."));
+                return Unauthorized(ApiResponse.ErrorResponse("Kullanici kimligi bulunamadi."));
             }
 
             var query = new GetCurrentUserQuery(userId);
@@ -96,7 +96,7 @@ namespace Commerce.API.Controllers
 
             if (!response.Success)
             {
-                if (response.Message == "Kullanıcı bulunamadı.")
+                if (response.Message == "Kullanici bulunamadi.")
                 {
                     return NotFound(response);
                 }
@@ -140,10 +140,39 @@ namespace Commerce.API.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (userId == null)
             {
-                return Unauthorized(ApiResponse.ErrorResponse("Kullanıcı kimliği bulunamadı."));
+                return Unauthorized(ApiResponse.ErrorResponse("Kullanici kimligi bulunamadi."));
             }
 
             var command = new ChangePasswordCommand(userId, changePasswordDto.CurrentPassword, changePasswordDto.NewPassword);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto updateProfileDto)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+            {
+                return Unauthorized(ApiResponse.ErrorResponse("Kullanici kimligi bulunamadi."));
+            }
+
+            var command = new UpdateProfileCommand(
+                userId,
+                updateProfileDto.FirstName,
+                updateProfileDto.LastName,
+                updateProfileDto.PhoneNumber,
+                updateProfileDto.DateOfBirth,
+                updateProfileDto.Gender
+            );
+
             var response = await _mediator.Send(command);
 
             if (!response.Success)
@@ -181,6 +210,72 @@ namespace Commerce.API.Controllers
             }
 
             return Ok(response);
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
+        {
+            var command = new VerifyEmailCommand(verifyEmailDto.Email, verifyEmailDto.VerificationCode);
+            var response = await _mediator.Send(command);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPost("resend-email-verification")]
+        public async Task<IActionResult> ResendEmailVerification([FromBody] ResendEmailVerificationDto resendDto)
+        {
+            // Kapsamli debug i�in loglar
+            Console.WriteLine("=== RESEND EMAIL VERIFICATION ENDPOINT CALLED ===");
+            Console.WriteLine($"Request Body DTO: {(resendDto == null ? "NULL" : "NOT NULL")}");
+            
+            if (resendDto != null)
+            {
+                Console.WriteLine($"DTO Email: '{resendDto.Email ?? "NULL"}'");
+                Console.WriteLine($"DTO Email Length: {resendDto.Email?.Length ?? 0}");
+                Console.WriteLine($"DTO Email IsNullOrEmpty: {string.IsNullOrEmpty(resendDto.Email)}");
+                Console.WriteLine($"DTO Email IsNullOrWhiteSpace: {string.IsNullOrWhiteSpace(resendDto.Email)}");
+            }
+            
+            // Raw request body'yi de logla
+            Request.EnableBuffering();
+            Request.Body.Position = 0;
+            using var reader = new StreamReader(Request.Body);
+            var rawBody = await reader.ReadToEndAsync();
+            Console.WriteLine($"Raw Request Body: '{rawBody}'");
+            Request.Body.Position = 0;
+            
+            Console.WriteLine("================================================");
+            
+            if (resendDto == null || string.IsNullOrWhiteSpace(resendDto.Email))
+            {
+                Console.WriteLine("VALIDATION FAILED: Email is null or empty");
+                return BadRequest(ApiResponse.ErrorResponse("Email adresi gereklidir."));
+            }
+
+            try
+            {
+                var command = new Commerce.Application.Features.Users.Commands.ResendEmailVerificationCommand(resendDto.Email);
+                var response = await _mediator.Send(command);
+
+                if (!response.Success)
+                {
+                    Console.WriteLine($"COMMAND FAILED: {response.Message}");
+                    return BadRequest(response);
+                }
+
+                Console.WriteLine("COMMAND SUCCESS");
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"EXCEPTION: {ex.Message}");
+                return BadRequest(ApiResponse.ErrorResponse($"Bir hata olustu: {ex.Message}"));
+            }
         }
     }
 }

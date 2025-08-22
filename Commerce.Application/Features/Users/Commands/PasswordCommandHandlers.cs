@@ -1,5 +1,6 @@
 using Commerce.Application.Features.Users.Commands;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Interfaces;
 using Commerce.Infrastructure.Persistence;
@@ -122,14 +123,19 @@ namespace Commerce.Application.Features.Users.Commands
         {
             try
             {
+                _logger.LogInformation("Password reset attempt for email: {Email}, Code: {Code}", request.Email, request.Code);
+
                 // Kullanıcıyı bul
                 var user = await _context.Users
                     .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
 
                 if (user == null)
                 {
+                    _logger.LogWarning("User not found for email: {Email}", request.Email);
                     return ApiResponse<bool>.ErrorResponse("Geçersiz email adresi.");
                 }
+
+                _logger.LogInformation("User found: {UserId}", user.Id);
 
                 // Geçerli kodu bul
                 var resetCode = await _context.PasswordResetCodes
@@ -141,8 +147,18 @@ namespace Commerce.Application.Features.Users.Commands
 
                 if (resetCode == null)
                 {
+                    // Daha detaylı hata ayıklama için tüm kodları kontrol et
+                    var allCodes = await _context.PasswordResetCodes
+                        .Where(prc => prc.UserId == user.Id)
+                        .ToListAsync(cancellationToken);
+
+                    _logger.LogWarning("Reset code not found. User: {UserId}, RequestedCode: {Code}, AllCodes: {@Codes}", 
+                        user.Id, request.Code, allCodes.Select(c => new { c.Code, c.IsUsed, c.ExpiresAt, c.CreatedAt }));
+
                     return ApiResponse<bool>.ErrorResponse("Geçersiz veya süresi dolmuş kod.");
                 }
+
+                _logger.LogInformation("Valid reset code found: {CodeId}", resetCode.Id);
 
                 // Şifreyi sıfırla
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -151,6 +167,7 @@ namespace Commerce.Application.Features.Users.Commands
                 if (!result.Succeeded)
                 {
                     var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogError("Password reset failed for user {UserId}. Errors: {Errors}", user.Id, errors);
                     return ApiResponse<bool>.ErrorResponse($"Şifre sıfırlama başarısız: {errors}");
                 }
 
@@ -227,3 +244,5 @@ namespace Commerce.Application.Features.Users.Commands
         }
     }
 }
+
+

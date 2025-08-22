@@ -168,8 +168,9 @@ export interface ForgotPasswordRequest {
 
 export interface ResetPasswordRequest {
   email: string;
-  resetCode: string;
+  code: string;
   newPassword: string;
+  confirmPassword: string;
 }
 
 export interface CreateAdminDto {

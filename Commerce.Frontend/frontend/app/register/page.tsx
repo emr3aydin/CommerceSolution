@@ -74,11 +74,11 @@ export default function RegisterPage() {
       const response = await authAPI.register(userData);
       
       if (response.success) {
-        setSuccess(response.message || "Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
+        setSuccess(response.message || "Kayıt başarılı! Email doğrulama sayfasına yönlendiriliyorsunuz...");
         
-        // 3 saniye sonra login sayfasına yönlendir
+        // 3 saniye sonra email doğrulama sayfasına yönlendir
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = `/verify-email?email=${encodeURIComponent(formData.email)}`;
         }, 3000);
       } else {
         setError(response.message || 'Kayıt sırasında bir hata oluştu.');
@@ -114,17 +114,17 @@ export default function RegisterPage() {
               </h1>
               
               <p className="text-gray-600 mb-6">
-                Hesabınız başarıyla oluşturuldu. Giriş sayfasına yönlendiriliyorsunuz...
+                Hesabınız başarıyla oluşturuldu. Email adresinize gönderilen doğrulama kodunu girerek hesabınızı aktifleştirin.
               </p>
 
               <Button
                 as={NextLink}
-                href="/login"
+                href={`/verify-email?email=${encodeURIComponent(formData.email)}`}
                 color="primary"
                 size="lg"
-                className="w-full font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+                className="w-full font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg"
               >
-                Giriş Yap
+                Email Doğrulama Sayfasına Git
               </Button>
             </CardBody>
           </Card>

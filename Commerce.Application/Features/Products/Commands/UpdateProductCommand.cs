@@ -1,5 +1,6 @@
 using MediatR;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Products.Commands
 {
@@ -15,3 +16,4 @@ namespace Commerce.Application.Features.Products.Commands
         bool IsActive
     ) : IRequest<ApiResponse<bool>>;
 }
+

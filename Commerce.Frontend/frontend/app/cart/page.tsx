@@ -38,11 +38,16 @@ export default function CartPage() {
 
   // Auth kontrolü
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    console.log('Cart page - checking authentication...');
+    const token = localStorage.getItem('accessToken');
+    console.log('Cart page - token found:', !!token);
+    
     if (!token) {
+      console.log('Cart page - no token, redirecting to login');
       router.push('/login?redirect=/cart');
       return;
     }
+    console.log('Cart page - authenticated, showing cart');
     setIsAuthenticated(true);
     setLoading(false);
   }, [router]);
@@ -134,10 +139,19 @@ export default function CartPage() {
     }
 
     // Kullanıcı giriş yapmış mı kontrol et
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken');
+    console.log('Order creation - checking token:', !!token);
 
     if (!token) {
       console.log("Sipariş vermek için giriş yapmanız gerekiyor!");
+      addToast({
+        title: "Sipariş vermek için giriş yapmanız gerekiyor!",
+        description: "Lütfen giriş yapın.",
+        color: "warning",
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
+      router.push('/login?redirect=/cart');
       return;
     }
 
@@ -170,6 +184,13 @@ export default function CartPage() {
 
       if (response.success) {
         console.log("Sipariş başarıyla oluşturuldu!");
+        addToast({
+          title: "Sipariş başarıyla oluşturuldu!",
+          description: "Siparişiniz alındı ve işleme konuldu.",
+          color: "success",
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
         clearCart();
         setStep('cart');
         setCheckoutData({
@@ -183,12 +204,21 @@ export default function CartPage() {
           postalCode: '',
           notes: ''
         });
+        // Ana sayfaya yönlendir
+        router.push('/');
       } else {
         throw new Error(response.message || 'Sipariş oluşturulamadı');
       }
     } catch (error) {
       console.error('Order creation error:', error);
       console.log("Sipariş oluşturulurken bir hata oluştu!");
+      addToast({
+        title: "Sipariş oluşturulurken bir hata oluştu!",
+        description: "Lütfen tekrar deneyin.",
+        color: "danger",
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
     } finally {
       setIsCheckingOut(false);
     }

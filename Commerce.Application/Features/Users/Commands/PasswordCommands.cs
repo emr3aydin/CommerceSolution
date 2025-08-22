@@ -1,4 +1,5 @@
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using MediatR;
 
 namespace Commerce.Application.Features.Users.Commands
@@ -9,3 +10,5 @@ namespace Commerce.Application.Features.Users.Commands
     
     public record ChangePasswordCommand(string UserId, string CurrentPassword, string NewPassword) : IRequest<ApiResponse<bool>>;
 }
+
+

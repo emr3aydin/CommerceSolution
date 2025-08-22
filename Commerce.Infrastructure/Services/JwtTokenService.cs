@@ -1,4 +1,4 @@
-﻿using Commerce.Application.Features.Users.Interfaces;
+﻿using Commerce.Infrastructure.Interfaces;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -59,7 +59,7 @@ namespace Commerce.Infrastructure.Services
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15), // Access token 15 dakika
+                expires: DateTime.UtcNow.AddMinutes(60), // Access token 60 dakika (test için)
                 signingCredentials: credentials
             );
 

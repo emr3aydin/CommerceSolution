@@ -7,15 +7,21 @@ import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
 import { EyeFilledIcon, EyeSlashFilledIcon } from "@/components/icons";
 import NextLink from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI } from "@/lib/api";
 import { TokenResponseDto } from "@/types";
+import { clearAuthData, logAuthState } from '@/utils/auth';
 
-export default function LoginPage() {
+export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isVisible, setIsVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get('redirect') || '/';
 
     const toggleVisibility = () => setIsVisible(!isVisible);
 
@@ -23,11 +29,12 @@ export default function LoginPage() {
         e.preventDefault();
         setIsLoading(true);
         setError("");
-
+        
         try {
+            // Önce mevcut auth verilerini temizle
+            clearAuthData();
+            
             const response = await authAPI.login({ email, password });
-
-            console.log('Login response:', response);
 
             if (response.success && response.data) {
                 const tokenData = response.data as TokenResponseDto;
@@ -36,25 +43,59 @@ export default function LoginPage() {
                 localStorage.setItem('accessToken', tokenData.accessToken);
                 localStorage.setItem('refreshToken', tokenData.refreshToken);
                 localStorage.setItem('tokenExpiry', tokenData.expiresAt);
+                
+                logAuthState(); // Auth durumunu logla
 
                 // Kullanıcı bilgilerini al
                 try {
                     const userResponse = await authAPI.getCurrentUser();
+                    
                     if (userResponse.success && userResponse.data) {
                         localStorage.setItem('userInfo', JSON.stringify(userResponse.data));
+                        
+                        console.log('🚀 Login: Dispatching navbar update events...');
+                        
+                        // Navbar'ı güncellemek için multiple event dispatch et
+                        window.dispatchEvent(new Event('userInfoChanged'));
+                        window.dispatchEvent(new CustomEvent('forceNavbarUpdate', { 
+                          detail: userResponse.data 
+                        }));
+                        window.dispatchEvent(new Event('storage')); // Manual storage event
+                        
+                        console.log('🎯 Login: Events dispatched, redirecting in 200ms...');
+                        
+                        // Kısa bekleme sonrası yönlendir
+                        setTimeout(() => {
+                            console.log('🔄 Login: Redirecting to:', redirectUrl);
+                            router.push(redirectUrl);
+                        }, 200);
+                    } else {
+                        router.push(redirectUrl);
                     }
-                } catch (userError) {
-                    console.error('User info fetch error:', userError);
+                } catch (userError: any) {
+                    // Kullanıcı bilgisi alınamasa bile login'i başarılı say
+                    router.push(redirectUrl);
                 }
-
-                // Ana sayfaya yönlendir
-                window.location.href = '/';
+                
             } else {
                 setError(response.message || 'Giriş başarısız.');
             }
         } catch (error: any) {
-            console.error('Login error:', error);
-            setError(error.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+            // Detaylı hata mesajı
+            let errorMessage = 'Giriş başarısız. ';
+            
+            if (error.message?.includes('session expired')) {
+                errorMessage += 'Oturum süresi dolmuş. Lütfen tekrar deneyin.';
+                localStorage.clear();
+            } else if (error.message?.includes('bağlanılamıyor')) {
+                errorMessage += 'Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.';
+            } else if (error.message?.includes('401')) {
+                errorMessage += 'E-posta veya şifre hatalı.';
+            } else {
+                errorMessage += error.message || 'Lütfen bilgilerinizi kontrol edin.';
+            }
+            
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -78,6 +119,17 @@ export default function LoginPage() {
                             {error && (
                                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                                     {error}
+                                    {error.includes("aktif değil") && (
+                                        <div className="mt-3">
+                                            <Link 
+                                                as={NextLink} 
+                                                href={`/verify-email?email=${encodeURIComponent(email)}`}
+                                                className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline"
+                                            >
+                                                📧 Email doğrulama sayfasına git
+                                            </Link>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

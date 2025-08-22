@@ -37,6 +37,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  // Cart items değiştiğinde localStorage'a kaydet ve event dispatch et
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined') {
+      const totalItems = items.reduce((total, item) => total + item.quantity, 0);
+      console.log('🛒 CartContext: Items changed, total items:', totalItems);
+      
+      localStorage.setItem('cartItemCount', totalItems.toString());
+      localStorage.setItem('cart', JSON.stringify(items));
+      
+      // Cart updated event dispatch et
+      console.log('🛒 CartContext: Dispatching cartUpdated event');
+      window.dispatchEvent(new Event('cartUpdated'));
+    }
+  }, [items, mounted]);
+
   useEffect(() => {
     setMounted(true);
     refreshCart();
@@ -45,7 +60,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshCart = async () => {
     if (typeof window !== 'undefined') {
       try {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('accessToken');
         console.log('RefreshCart - Token:', token ? 'exists' : 'null');
 
         if (!token) {
@@ -117,8 +132,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = async (product: Product, quantity: number = 1) => {
     try {
+      const token = localStorage.getItem('accessToken');
+      
+      if (!token) {
+        addToast({
+          title: 'Giriş yapmalısınız!',
+          description: 'Sepete ürün eklemek için lütfen giriş yapın.',
+          color: 'warning',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
+        return;
+      }
       
       const productResponse = await productAPI.getById(product.id);
+      
       if (!productResponse.success || !productResponse.data) {
         addToast({
               title: `${product.name} bulunamadı!`,
@@ -127,15 +155,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               timeout: 5000,
               shouldShowTimeoutProgress: true,
             });
-        console.error('Ürün bulunamadı');
         return;
       }
 
       const currentProduct = productResponse.data as Product;
-
       
       if (currentProduct.stock <= 0) {
-        console.error('Ürün stokta yok');
         addToast({
           title: `${currentProduct.name} stokta yok!`,
           description: 'Bu ürünü sepete ekleyemezsiniz.',
@@ -146,16 +171,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      
       const existingItem = items.find(item => item.product.id === product.id);
       const currentCartQuantity = existingItem ? existingItem.quantity : 0;
       const totalRequestedQuantity = currentCartQuantity + quantity;
 
-      
       if (totalRequestedQuantity > currentProduct.stock) {
         const availableQuantity = currentProduct.stock - currentCartQuantity;
+        
         if (availableQuantity <= 0) {
-          console.error('Bu üründen daha fazla ekleyemezsiniz, stok yetersiz');
           addToast({
             title: `${currentProduct.name} için stok sorunu!`,
             description: `Maksimum ${currentProduct.stock} adet alabilirsiniz.`,
@@ -167,52 +190,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       
         quantity = availableQuantity;
-        console.warn(`Stok yetersiz. Sadece ${quantity} adet eklenebilir.`);
       }
+      
+      const response = await cartAPI.addToCart({
+        productId: product.id,
+        quantity: quantity
+      });
 
-      const token = localStorage.getItem('authToken');
-      console.log('AddToCart - Token:', token ? 'exists' : 'null');
-      console.log('AddToCart - Product:', product);
-      console.log('AddToCart - Requested quantity:', quantity);
-      console.log('AddToCart - Available stock:', currentProduct.stock);
-
-      if (token) {
-        
-        console.log('AddToCart - Making API call to add product');
-        const response = await cartAPI.addToCart({
-          productId: product.id,
-          quantity: quantity
-        });
-        console.log('AddToCart - API response:', response);
-
-        if (response.success) {
-          await refreshCart(); 
-          console.log(`${product.name} sepete eklendi!`);
-          addToast({
-            title: `${product.name} sepete eklendi!`,
-            description: `Sepetinizde ${quantity} adet ${product.name} var.`,
-            color: 'success',
-            timeout: 5000,
-            shouldShowTimeoutProgress: true,
-          });
-        } else {
-          throw new Error(response.message);
-        }
-      } else {
-  
-        console.error('Sepete ürün eklemek için giriş yapmalısınız');
+      if (response.success) {
+        await refreshCart(); 
         addToast({
-          title: 'Giriş yapmalısınız!',
-          description: 'Sepete ürün eklemek için lütfen giriş yapın.',
-          color: 'warning',
+          title: `${product.name} sepete eklendi!`,
+          description: `Sepetinizde ${quantity} adet ${product.name} var.`,
+          color: 'success',
           timeout: 5000,
           shouldShowTimeoutProgress: true,
         });
-        return;
+      } else {
+        throw new Error(response.message);
       }
+      
     } catch (error: any) {
       console.error('Add to cart error:', error);
-      console.log("Hata: Ürün sepete eklenirken bir hata oluştu!");
       addToast({
         title: 'Sepete ekleme hatası!',
         description: error.message || 'Ürün sepete eklenirken bir hata oluştu.',
@@ -225,7 +224,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const removeFromCart = async (productId: string | number) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('accessToken');
 
       if (token) {
         const item = items.find(item => item.product.id === productId);
@@ -329,7 +328,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quantity = currentProduct.stock; 
       }
 
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('accessToken');
 
       if (token) {
         const item = items.find(item => item.product.id === productId);
@@ -353,7 +352,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('accessToken');
 
       if (token) {
         // Backend'den temizle

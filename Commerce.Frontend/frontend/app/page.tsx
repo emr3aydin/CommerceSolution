@@ -5,9 +5,11 @@ import { Card, CardBody, CardFooter } from "@heroui/card";
 import { Image } from "@heroui/image";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
+import NextLink from "next/link";
 import { productAPI, categoryAPI } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
 import { Product, Category, PaginatedProductsResponse } from "@/types";
+import { logAuthState } from '@/utils/auth';
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -22,6 +24,8 @@ export default function Home() {
   const pageSize = 12;
 
   useEffect(() => {
+    console.log('Home page loaded - checking auth state...');
+    logAuthState();
     loadCategories();
     loadInitialData();
   }, [currentPage, selectedCategory]);
@@ -272,31 +276,37 @@ export default function Home() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {products.map((product) => (
-                <Card key={product.id} className="bg-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-lg">
-                  <CardBody className="p-0">
-                    <div className="relative overflow-hidden rounded-t-lg">
-                      <Image
-                        src={product.imageUrl || "/placeholder.jpg"}
-                        alt={product.name}
-                        className="w-full object-cover h-64 transition-transform duration-300 hover:scale-110"
-                        fallbackSrc="/placeholder.jpg"
-                      />
-                      {product.stock <= 5 && product.stock > 0 && (
-                        <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                          Son {product.stock} adet!
-                        </div>
-                      )}
-                      {product.stock === 0 && (
-                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                          <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">
-                            Stokta Yok
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardBody>
+                <Card key={product.id} className="bg-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border-0 shadow-lg cursor-pointer">
+                  <NextLink href={`/products/${product.id}`}>
+                    <CardBody className="p-0">
+                      <div className="relative overflow-hidden rounded-t-lg">
+                        <Image
+                          src={product.imageUrl || "/placeholder.jpg"}
+                          alt={product.name}
+                          className="w-full object-cover h-64 transition-transform duration-300 hover:scale-110"
+                          fallbackSrc="/placeholder.jpg"
+                        />
+                        {product.stock <= 5 && product.stock > 0 && (
+                          <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                            Son {product.stock} adet!
+                          </div>
+                        )}
+                        {product.stock === 0 && (
+                          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                            <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold">
+                              Stokta Yok
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardBody>
+                  </NextLink>
                   <CardFooter className="flex flex-col items-start p-6">
-                    <h4 className="font-bold text-lg mb-3 line-clamp-1 text-gray-900">{product.name}</h4>
+                    <NextLink href={`/products/${product.id}`}>
+                      <h4 className="font-bold text-lg mb-3 line-clamp-1 text-gray-900 hover:text-primary transition-colors">
+                        {product.name}
+                      </h4>
+                    </NextLink>
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">
                       {product.description}
                     </p>
@@ -315,15 +325,27 @@ export default function Home() {
                       </Chip>
                     </div>
 
-                    <Button
-                      color="primary"
-                      size="lg"
-                      className="w-full font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-300"
-                      disabled={product.stock === 0}
-                      onPress={() => handleAddToCart(product)}
-                    >
-                      {product.stock > 0 ? "🛒 Sepete Ekle" : "😔 Stokta Yok"}
-                    </Button>
+                    <div className="flex gap-2 w-full">
+                      <Button
+                        as={NextLink}
+                        href={`/products/${product.id}`}
+                        color="primary"
+                        variant="bordered"
+                        size="lg"
+                        className="flex-1 font-semibold"
+                      >
+                        👁️ Detay
+                      </Button>
+                      <Button
+                        color="primary"
+                        size="lg"
+                        className="flex-1 font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg transition-all duration-300"
+                        disabled={product.stock === 0}
+                        onPress={() => handleAddToCart(product)}
+                      >
+                        {product.stock > 0 ? "🛒 Sepete Ekle" : "😔 Stokta Yok"}
+                      </Button>
+                    </div>
                   </CardFooter>
                 </Card>
               ))}

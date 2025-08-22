@@ -1,39 +1,20 @@
 ﻿using Commerce.Application;
-using Commerce.Application.Features.Users.Interfaces;
-using Commerce.Domain.Entities;
-using Commerce.Infrastructure.Persistence;
-using Commerce.Infrastructure.Services;
-using Commerce.Infrastructure.Interfaces;
+using Commerce.Infrastructure;
 using Commerce.Infrastructure.Configuration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
-using AutoMapper;
 using Commerce.Application.Common.Mappings;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<LogDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Exception Handling
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
+// AutoMapper
 builder.Services.AddAutoMapper(cfg => { }, typeof(MappingProfile));
 
-builder.Services.AddIdentity<User, ApplicationRole>(options =>
-{
-    // Password requirements
-    options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireLowercase = false;
-    
-    // User settings
-    options.User.RequireUniqueEmail = true;
-})
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders(); // Bu satır eksikti!
-
+// JWT Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -59,34 +40,33 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
+// CORS Configuration
+const string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(name: myAllowSpecificOrigins,
+    options.AddPolicy(name: MyAllowSpecificOrigins,
         policy =>
         {
-            policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "https://localhost:3000", "https://localhost:3001").AllowAnyHeader().AllowAnyMethod();
-        }
-        );
-}
+            policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "https://localhost:3000", "https://localhost:3001")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
 
-    );
-
+// MVC Controllers
 builder.Services.AddControllers();
 
-// Application Services Registration
+// Clean Architecture Services Registration
 builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
 
+// Swagger/OpenAPI Configuration
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Commerce.API", Version = "v1" });
 
-    // Güvenlik tanımını ekleyin
+    // JWT Security Definition
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -113,45 +93,25 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-options.UseSqlServer(connectionString));
-
-builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-builder.Services.AddScoped<ILoggingService, LoggingService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-
 // Email Settings Configuration
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
+// Exception Handling
 app.UseExceptionHandler();
 
-
+// Development Environment
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-
 app.UseHttpsRedirection();
-
-app.UseCors(myAllowSpecificOrigins);
-
+app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

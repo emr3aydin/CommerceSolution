@@ -1,9 +1,10 @@
-﻿using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Persistence;
 using MediatR;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Commerce.Domain; 
+using Commerce.Core.Common; 
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Categories.Commands
 {
@@ -22,7 +23,7 @@ namespace Commerce.Application.Features.Categories.Commands
 
             if (category == null)
             {
-                return ApiResponse<int>.ErrorResponse($"ID'si {request.Id} olan kategori bulunamadı ve güncellenemedi.");
+                return ApiResponse<int>.ErrorResponse($"ID'si {request.Id} olan kategori bulunamadi ve g�ncellenemedi.");
             }
 
             category.Name = request.Name;
@@ -32,7 +33,8 @@ namespace Commerce.Application.Features.Categories.Commands
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<int>.SuccessResponse(category.Id, $"ID'si {request.Id} olan kategori başarıyla güncellendi.");
+            return ApiResponse<int>.SuccessResponse(category.Id, $"ID'si {request.Id} olan kategori basariyla g�ncellendi.");
         }
     }
 }
+

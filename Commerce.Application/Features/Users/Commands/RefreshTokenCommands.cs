@@ -1,5 +1,6 @@
 using Commerce.Application.Features.Users.DTOs;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using MediatR;
 
 namespace Commerce.Application.Features.Users.Commands
@@ -24,3 +25,5 @@ namespace Commerce.Application.Features.Users.Commands
         }
     }
 }
+
+

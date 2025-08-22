@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Commerce.Application.Features.Carts.DTOs;
 using Commerce.Application.Features.Categories.DTOs;
 using Commerce.Application.Features.Orders.DTOs;
@@ -33,3 +33,4 @@ namespace Commerce.Application.Common.Mappings
         }
     }
 }
+

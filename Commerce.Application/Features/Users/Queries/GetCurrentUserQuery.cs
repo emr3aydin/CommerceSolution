@@ -1,5 +1,6 @@
-﻿using Commerce.Application.Features.Users.DTOs;
-using Commerce.Domain;
+using Commerce.Application.Features.Users.DTOs;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -12,3 +13,5 @@ namespace Commerce.Application.Features.Users.Queries
     public record GetCurrentUserQuery(string UserId) : IRequest<ApiResponse<CurrentUserDto>>;
 
 }
+
+

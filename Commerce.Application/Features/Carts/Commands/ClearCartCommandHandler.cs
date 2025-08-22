@@ -1,7 +1,8 @@
-﻿using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Carts.Commands
 {
@@ -22,12 +23,13 @@ namespace Commerce.Application.Features.Carts.Commands
 
             if (cart == null)
             {
-                return ApiResponse<bool>.ErrorResponse("Sepet bulunamadı veya zaten boş.");
+                return ApiResponse<bool>.ErrorResponse("Sepet bulunamadi veya zaten bos.");
             }
 
             _context.CartItems.RemoveRange(cart.CartItems);
             await _context.SaveChangesAsync(cancellationToken);
-            return ApiResponse<bool>.SuccessResponse(true, "Sepet başarıyla temizlendi.");
+            return ApiResponse<bool>.SuccessResponse(true, "Sepet basariyla temizlendi.");
         }
     }
 }
+
