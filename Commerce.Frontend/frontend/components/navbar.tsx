@@ -21,6 +21,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { Logo, ShoppingCartIcon } from "@/components/icons";
 import { CartPreview } from "@/components/cart-preview";
 import { useCart } from "@/contexts/CartContext";
+import { authAPI } from "@/lib/api";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -39,36 +40,85 @@ export const Navbar = () => {
   }, [items, mounted, getTotalItems]); // items array'ini direkt dinle
 
   useEffect(() => {
+    console.log('🏗️ Navbar: Component mounted, setting mounted to true');
     setMounted(true);
   }, []);
 
   useEffect(() => {
     // Sadece mount edildikten sonra localStorage'a eriş
+    console.log('⚙️ Navbar: Auth check useEffect triggered, mounted:', mounted);
     if (mounted && typeof window !== 'undefined') {
-      try {
-        const userInfo = localStorage.getItem('userInfo');
-        if (userInfo && userInfo !== 'undefined') {
-          setUser(JSON.parse(userInfo));
+      console.log('✅ Navbar: Setting up authentication check');
+      
+      const checkUserInfo = () => {
+        console.log('🔍 Navbar: checkUserInfo called');
+        try {
+          const userInfo = localStorage.getItem('userInfo');
+          const accessToken = localStorage.getItem('accessToken');
+          
+          console.log('🔍 Navbar auth state:', { 
+            hasUserInfo: !!userInfo, 
+            hasAccessToken: !!accessToken,
+            currentUser: user?.firstName || 'none'
+          });
+          
+          if (userInfo && userInfo !== 'undefined' && accessToken) {
+            const parsedUser = JSON.parse(userInfo);
+            console.log('✅ Navbar: Setting user to:', parsedUser.firstName);
+            setUser(parsedUser);
+          } else {
+            console.log('❌ Navbar: Clearing user');
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('❌ Navbar localStorage error:', error);
+          localStorage.removeItem('userInfo');
+          setUser(null);
         }
-      } catch (error) {
-        console.error('localStorage error:', error);
-        // localStorage hatası durumunda temizle
-        localStorage.removeItem('userInfo');
-      }
-    }
-  }, [mounted]);
+      };
 
-  const handleLogout = () => {
+      // İlk kontrol
+      console.log('🎯 Navbar: Initial auth check');
+      checkUserInfo();
+
+      // Sadece login/logout event'lerini dinle
+      const handleAuthChange = () => {
+        console.log('🎯 Navbar: Auth change event detected');
+        setTimeout(checkUserInfo, 100); // Kısa delay ile kontrol et
+      };
+
+      // Event listener'ı ekle
+      console.log('👂 Navbar: Adding userInfoChanged event listener');
+      window.addEventListener('userInfoChanged', handleAuthChange);
+
+      return () => {
+        console.log('🧹 Navbar: Cleaning up event listener');
+        window.removeEventListener('userInfoChanged', handleAuthChange);
+      };
+    }
+  }, [mounted]); // user dependency'sini kaldır ki sonsuz döngü olmasın
+
+  const handleLogout = async () => {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('authToken');
+        // Önce API'dan logout
+        await authAPI.logout();
+      } catch (error) {
+        console.error('Logout API error:', error);
+        // API hatası olsa bile local storage'ı temizle
+      } finally {
+        // Local storage'ı temizle
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('tokenExpiry');
         localStorage.removeItem('userInfo');
         localStorage.removeItem('cart');
         localStorage.removeItem('cartItemCount');
         setUser(null);
-        window.location.href = '/';
-      } catch (error) {
-        console.error('Logout error:', error);
+        
+        // Navbar'ın güncellendiğini diğer component'lere bildir
+        window.dispatchEvent(new Event('userInfoChanged'));
+        
         window.location.href = '/';
       }
     }

@@ -2,7 +2,8 @@ using Commerce.Application.Features.Carts.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Carts.Queries
 {
@@ -24,7 +25,7 @@ namespace Commerce.Application.Features.Carts.Queries
 
             if (cart == null)
             {
-                return ApiResponse<CartDto?>.SuccessResponse(null, "Sepet boþ.");
+                return ApiResponse<CartDto?>.SuccessResponse(null, "Sepet boï¿½.");
             }
 
             var cartDto = new CartDto
@@ -39,7 +40,8 @@ namespace Commerce.Application.Features.Carts.Queries
                     ProductImageUrl = ci.Product?.ImageUrl ?? string.Empty,
                     UnitPrice = ci.Product?.Price ?? 0,
                     Quantity = ci.Quantity,
-                    TotalPrice = (ci.Product?.Price ?? 0) * ci.Quantity
+                    TotalPrice = (ci.Product?.Price ?? 0) * ci.Quantity,
+                    ProductStock = ci.Product?.Stock ?? 0
                 }).ToList()
             };
 
@@ -50,3 +52,4 @@ namespace Commerce.Application.Features.Carts.Queries
         }
     }
 }
+

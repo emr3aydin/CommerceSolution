@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Commerce.Application.Features.Categories.DTOs;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
@@ -8,7 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Categories.Queries
 {
@@ -43,3 +44,4 @@ namespace Commerce.Application.Features.Categories.Queries
         }
     }
 }
+

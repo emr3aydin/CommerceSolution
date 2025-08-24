@@ -2,7 +2,8 @@ using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain; 
+using Commerce.Core.Common; 
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Carts.Commands
 {
@@ -41,7 +42,7 @@ namespace Commerce.Application.Features.Carts.Commands
             }
 
             var existingCartItem = cart.CartItems
-                .FirstOrDefault(ci => ci.ProductId == request.ProductId);
+                .FirstOrDefault(ci => ci.ProductId == request.ProductId && ci.CartId == cart.Id);
 
             if (existingCartItem != null)
             {
@@ -62,8 +63,16 @@ namespace Commerce.Application.Features.Carts.Commands
                 _context.CartItems.Add(cartItem);
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
-            return ApiResponse<bool>.SuccessResponse(true, "Ürün sepete başarıyla eklendi.");
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+                return ApiResponse<bool>.SuccessResponse(true, "Ürün sepete başarıyla eklendi.");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<bool>.ErrorResponse($"Veritabanı hatası: {ex.Message}");
+            }
         }
     }
 }
+

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Commerce.Infrastructure.Persistence
+namespace Commerce.Domain.Entities
 {
     public class ApplicationRole : IdentityRole<Guid>
     {
@@ -18,6 +18,6 @@ namespace Commerce.Infrastructure.Persistence
         }
         public string? Description { get; set; }
 
-        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; } 
+        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; } = new List<ApplicationUserRole>(); 
     }
 }

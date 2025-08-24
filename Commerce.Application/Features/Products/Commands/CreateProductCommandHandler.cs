@@ -1,8 +1,9 @@
-﻿using Commerce.Domain.Entities;
+using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain; // Make sure to include your Domain namespace
+using Commerce.Core.Common; // Make sure to include your Domain namespace
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Products.Commands
 {
@@ -21,13 +22,13 @@ namespace Commerce.Application.Features.Products.Commands
                 .AnyAsync(c => c.Id == request.CategoryId, cancellationToken);
 
             if (!categoryExists)
-                return ApiResponse<int>.ErrorResponse("Belirtilen kategori bulunamadı.");
+                return ApiResponse<int>.ErrorResponse("Belirtilen kategori bulunamadi.");
 
             var skuExists = await _context.Products
                 .AnyAsync(p => p.SKU == request.SKU, cancellationToken);
 
             if (skuExists)
-                return ApiResponse<int>.ErrorResponse("Bu SKU zaten kullanımda.");
+                return ApiResponse<int>.ErrorResponse("Bu SKU zaten kullanimda.");
 
             var product = new Product
             {
@@ -45,7 +46,8 @@ namespace Commerce.Application.Features.Products.Commands
             _context.Products.Add(product);
             await _context.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<int>.SuccessResponse(product.Id, "Ürün başarıyla oluşturuldu.");
+            return ApiResponse<int>.SuccessResponse(product.Id, "�r�n basariyla olusturuldu.");
         }
     }
 }
+

@@ -1,8 +1,9 @@
-﻿using Commerce.Application.Features.Products.DTOs;
+using Commerce.Application.Features.Products.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Products.Queries
 {
@@ -39,10 +40,11 @@ namespace Commerce.Application.Features.Products.Queries
 
             if (!products.Any())
             {
-                return ApiResponse<IEnumerable<ProductDto>>.ErrorResponse("Bu kategoriye ait aktif ürün bulunamadı.");
+                return ApiResponse<IEnumerable<ProductDto>>.ErrorResponse("Bu kategoriye ait aktif �r�n bulunamadi.");
             }
 
             return ApiResponse<IEnumerable<ProductDto>>.SuccessResponse(products);
         }
     }
 }
+

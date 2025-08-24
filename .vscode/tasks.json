@@ -4,7 +4,7 @@
 		{
 			"type": "shell",
 			"label": "Run Backend API",
-			"command": "dotnet run --project Commerce.API/Commerce.API.csproj",
+			"command": "dotnet run --project Commerce.API/Commerce.API.csproj --launch-profile https",
 			"group": "build",
 			"problemMatcher": [
 				"$msCompile"

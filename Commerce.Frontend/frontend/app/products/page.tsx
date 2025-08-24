@@ -6,11 +6,11 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Select, SelectItem } from "@heroui/select";
 import { Chip } from "@heroui/chip";
+import NextLink from "next/link";
 import { ShoppingCartIcon } from "@/components/icons";
 import { productAPI, categoryAPI } from "@/lib/api";
 import { useCart } from "@/contexts/CartContext";
-import { addToast } from "@heroui/toast";
-import { Product, Category } from "@/types";
+import { Product, Category, PaginatedProductsResponse } from "@/types";
 
 export default function ProductsPage() {
   const searchParams = useSearchParams();
@@ -28,6 +28,7 @@ export default function ProductsPage() {
   useEffect(() => {
     // URL parametrelerinden kategori değerini al
     const urlCategory = searchParams.get('category') || '';
+    console.log('Products page - URL category parameter:', urlCategory);
     setSelectedCategory(urlCategory);
   }, [searchParams]);
 
@@ -53,36 +54,46 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const params = {
+      const params: any = {
         pageNumber: currentPage,
         pageSize: pageSize,
-        isActive: true,
-        ...(searchTerm && { searchTerm }),
-        ...(selectedCategory && selectedCategory !== "all" && { categoryId: parseInt(selectedCategory) })
+        isActive: true
       };
 
-      const response = await productAPI.getAll(params);
-      
-      if (response.success && response.data) {
-        // API'den dönen yapıyı kontrol et
-        const data = response.data as any;
-        if (data.items) {
-          setProducts(data.items);
-          setTotalPages(Math.ceil(data.totalCount / pageSize));
-        } else if (Array.isArray(data)) {
-          setProducts(data);
-          setTotalPages(1);
-        } else {
-          setProducts([]);
-          setTotalPages(1);
+      if (searchTerm) {
+        params.searchTerm = searchTerm;
+      }
+
+      if (selectedCategory && selectedCategory !== "all" && selectedCategory !== "") {
+        const categoryId = parseInt(selectedCategory);
+        if (categoryId > 0) {
+          params.categoryId = categoryId;
         }
+      }
+
+      console.log("Products page - API params:", params);
+      const response = await productAPI.getAll(params);
+      console.log("Products page - API response:", response);
+
+      if (response.success && response.data) {
+        const paginatedData = response.data as PaginatedProductsResponse;
+        setProducts(paginatedData.data || []);
+        setTotalPages(paginatedData.totalPages);
+
+        console.log("Products page - Loaded products:", {
+          count: paginatedData.data?.length || 0,
+          totalPages: paginatedData.totalPages,
+          totalCount: paginatedData.totalCount
+        });
       } else {
+        console.error("Products page - API error:", response.message);
         setProducts([]);
         setTotalPages(1);
       }
     } catch (error) {
       console.error("Ürünler yüklenirken hata:", error);
       setProducts([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -127,15 +138,18 @@ export default function ProductsPage() {
             selectedKeys={selectedCategory ? [selectedCategory] : []}
             onSelectionChange={(keys) => {
               const selected = Array.from(keys)[0] as string;
+              console.log('Products page - Category selection changed:', selected);
               setSelectedCategory(selected);
             }}
-            items={[{ id: "all", name: "Tüm Kategoriler" }, ...categories]}
           >
-            {(category) => (
-              <SelectItem key={category.id.toString()}>
-                {category.name}
-              </SelectItem>
-            )}
+            {[
+              <SelectItem key="all">Tüm Kategoriler</SelectItem>,
+              ...categories.map((category) => (
+                <SelectItem key={category.id.toString()}>
+                  {category.name}
+                </SelectItem>
+              ))
+            ]}
           </Select>
         </div>
       </div>
@@ -143,29 +157,35 @@ export default function ProductsPage() {
       {/* Ürün Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => (
-          <Card key={product.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <div className="w-full">
-                {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-default-200 rounded-lg flex items-center justify-center">
-                    <span className="text-default-500">Resim Yok</span>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
+          <Card key={product.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <NextLink href={`/products/${product.id}`}>
+              <CardHeader className="pb-2">
+                <div className="w-full">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-default-200 rounded-lg flex items-center justify-center">
+                      <span className="text-default-500">Resim Yok</span>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+            </NextLink>
             <CardBody className="pt-0">
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg line-clamp-2">{product.name}</h3>
+                <NextLink href={`/products/${product.id}`}>
+                  <h3 className="font-semibold text-lg line-clamp-2 hover:text-primary transition-colors">
+                    {product.name}
+                  </h3>
+                </NextLink>
                 <p className="text-small text-default-500 line-clamp-2">
                   {product.description}
                 </p>
-                
+
                 <div className="flex justify-between items-center">
                   <Chip size="sm" color="secondary" variant="flat">
                     {product.categoryName}
@@ -179,16 +199,27 @@ export default function ProductsPage() {
                   <span className="text-xl font-bold text-primary">
                     {formatPrice(product.price)}
                   </span>
-                  <Button
-                    color="primary"
-                    variant="solid"
-                    size="sm"
-                    startContent={<ShoppingCartIcon className="w-4 h-4" />}
-                    onClick={() => handleAddToCart(product.id)}
-                    isDisabled={product.stock === 0}
-                  >
-                    Sepete Ekle
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      as={NextLink}
+                      href={`/products/${product.id}`}
+                      color="primary"
+                      variant="bordered"
+                      size="sm"
+                    >
+                      Detay
+                    </Button>
+                    <Button
+                      color="primary"
+                      variant="solid"
+                      size="sm"
+                      startContent={<ShoppingCartIcon className="w-4 h-4" />}
+                      onClick={() => handleAddToCart(product.id)}
+                      isDisabled={product.stock === 0}
+                    >
+                      Sepete Ekle
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardBody>

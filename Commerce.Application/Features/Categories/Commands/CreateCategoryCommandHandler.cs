@@ -1,11 +1,12 @@
-﻿using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Persistence;
 using MediatR;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Categories.Commands
 {
@@ -32,7 +33,8 @@ namespace Commerce.Application.Features.Categories.Commands
             _context.Categories.Add(category);
             await _context.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<int>.SuccessResponse(category.Id, "Kategori başarıyla oluşturuldu.");
+            return ApiResponse<int>.SuccessResponse(category.Id, "Kategori basariyla olusturuldu.");
         }
     }
 }
+

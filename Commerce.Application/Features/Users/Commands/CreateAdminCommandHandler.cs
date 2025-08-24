@@ -1,4 +1,5 @@
-﻿using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
@@ -42,7 +43,7 @@ namespace Commerce.Application.Features.Users.Commands
             if (!result.Succeeded)
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return ApiResponse.ErrorResponse($"Admin kullanıcısı oluşturulurken bir hata oluştu: {errors}");
+                return ApiResponse.ErrorResponse($"Admin kullanicisi olusturulurken bir hata olustu: {errors}");
             }
 
             if (!await _roleManager.RoleExistsAsync("Admin"))
@@ -52,7 +53,9 @@ namespace Commerce.Application.Features.Users.Commands
 
             await _userManager.AddToRoleAsync(user, "Admin");
 
-            return ApiResponse.SuccessResponse("Admin kullanıcısı başarıyla oluşturuldu.");
+            return ApiResponse.SuccessResponse("Admin kullanicisi basariyla olusturuldu.");
         }
     }
 }
+
+

@@ -1,5 +1,6 @@
 using MediatR;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Orders.Commands
 {
@@ -9,3 +10,4 @@ namespace Commerce.Application.Features.Orders.Commands
         Guid ApprovedBy
     ) : IRequest<ApiResponse<bool>>; // Changed return type to ApiResponse<bool>
 }
+

@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 
 namespace Commerce.Application
 {
@@ -7,3 +7,4 @@ namespace Commerce.Application
         public static readonly Assembly Assembly = typeof(AssemblyReference).Assembly;
     }
 }
+

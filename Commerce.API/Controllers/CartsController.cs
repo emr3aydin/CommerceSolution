@@ -4,7 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using Commerce.Domain; // Make sure to include your Domain namespace
+using Commerce.Core.Common;
 
 namespace Commerce.API.Controllers
 {
@@ -23,66 +23,68 @@ namespace Commerce.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCart()
         {
-            
-                var userId = GetCurrentUserId();
-                var cart = await _mediator.Send(new GetCartByUserIdQuery(userId));
 
-                if (cart.Data == null)
-                    return Ok(ApiResponse<object>.SuccessNoData("Sepet boş."));
+            var userId = GetCurrentUserId();
+            var cart = await _mediator.Send(new GetCartByUserIdQuery(userId));
 
-                return Ok(cart);
-           
+            if (cart.Data == null)
+                return Ok(ApiResponse<object>.SuccessNoData("Sepet boş."));
+
+            return Ok(cart);
+
         }
 
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
         {
-            
-                var userId = GetCurrentUserId();
-                var command = new AddToCartCommand(userId, request.ProductId, request.Quantity);
 
-                var result = await _mediator.Send(command);
-                if (!result.Success)
-                    return BadRequest(ApiResponse.ErrorResponse(result.Message));
+            var userId = GetCurrentUserId();
+            var command = new AddToCartCommand(userId, request.ProductId, request.Quantity);
 
-                return Ok(ApiResponse.SuccessResponse(result.Message));
-            
-            
+            var result = await _mediator.Send(command);
+           // return StatusCode(400, result);
+            if (!result.Success)
+
+                return BadRequest(ApiResponse.ErrorResponse(result.Message));
+
+            return Ok(ApiResponse.SuccessResponse(result.Message));
+
+
         }
 
         [HttpDelete("remove/{cartItemId}")]
         public async Task<IActionResult> RemoveFromCart(int cartItemId)
         {
-            
-                if (cartItemId <= 0)
-                    return BadRequest(ApiResponse.ErrorResponse("Geçerli bir sepet öğesi ID'si giriniz."));
 
-                var userId = GetCurrentUserId();
-                var command = new RemoveFromCartCommand(userId, cartItemId);
+            if (cartItemId <= 0)
+                return BadRequest(ApiResponse.ErrorResponse("Geçerli bir sepet öğesi ID'si giriniz."));
 
-                var result = await _mediator.Send(command);
-                if (!result.Success)
-                    return NotFound(ApiResponse.ErrorResponse("Sepet öğesi bulunamadı."));
+            var userId = GetCurrentUserId();
+            var command = new RemoveFromCartCommand(userId, cartItemId);
 
-                return Ok(ApiResponse.SuccessResponse("Ürün sepetten başarıyla çıkarıldı."));
-            
+            var result = await _mediator.Send(command);
+            if (!result.Success)
+                return NotFound(ApiResponse.ErrorResponse("Sepet öğesi bulunamadı."));
+
+            return Ok(ApiResponse.SuccessResponse("Ürün sepetten başarıyla çıkarıldı."));
+
         }
 
         [HttpDelete("clear")]
         public async Task<IActionResult> ClearCart()
         {
-            
-                var userId = GetCurrentUserId();
-                var command = new ClearCartCommand(userId);
-                var result = await _mediator.Send(command);
 
-                if (!result.Success)
-                {
-                    return BadRequest(ApiResponse.ErrorResponse("Sepet temizlenirken bir sorun oluştu."));
-                }
+            var userId = GetCurrentUserId();
+            var command = new ClearCartCommand(userId);
+            var result = await _mediator.Send(command);
 
-                return Ok(ApiResponse.SuccessResponse("Sepet başarıyla temizlendi."));
-            
+            if (!result.Success)
+            {
+                return BadRequest(ApiResponse.ErrorResponse("Sepet temizlenirken bir sorun oluştu."));
+            }
+
+            return Ok(ApiResponse.SuccessResponse("Sepet başarıyla temizlendi."));
+
         }
 
         private Guid GetCurrentUserId()

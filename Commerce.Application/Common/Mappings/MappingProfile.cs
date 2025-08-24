@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Commerce.Application.Features.Carts.DTOs;
 using Commerce.Application.Features.Categories.DTOs;
 using Commerce.Application.Features.Orders.DTOs;
@@ -18,7 +18,7 @@ namespace Commerce.Application.Common.Mappings
         public MappingProfile() {
             CreateMap<User, CurrentUserDto>();
 
-            CreateMap<Category, CategoryDto>().ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count));
+            CreateMap<Category, CategoryDto>().ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count)).ReverseMap();
 
             CreateMap<Product, ProductDto>();
 
@@ -33,3 +33,4 @@ namespace Commerce.Application.Common.Mappings
         }
     }
 }
+

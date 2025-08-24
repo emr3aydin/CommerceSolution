@@ -1,6 +1,7 @@
-﻿using Commerce.Application.Features.Products.DTOs;
+using Commerce.Application.Features.Products.DTOs;
 using MediatR;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 namespace Commerce.Application.Features.Products.Queries
 {
     public record GetAllProductsQuery(
@@ -9,5 +10,6 @@ namespace Commerce.Application.Features.Products.Queries
         string? SearchTerm = null,
         int PageNumber = 1,
         int PageSize = 10
-    ) : IRequest<ApiResponse<IEnumerable<ProductDto>>>;
+    ) : IRequest<ApiResponse<PaginatedProductsResponse>>;
 }
+

@@ -76,6 +76,7 @@ export interface BackendCartItem {
   unitPrice: number;
   quantity: number;
   totalPrice: number;
+  productStock: number;
 }
 
 export interface Order {
@@ -150,6 +151,28 @@ export interface LoginDto {
   password: string;
 }
 
+export interface TokenResponseDto {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  tokenType: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface CreateAdminDto {
   email: string;
   username: string;
@@ -217,4 +240,42 @@ export interface CreateOrderItemCommand {
 
 export interface UpdateOrderStatusRequest {
   status: string;
+}
+
+// Paginated responses
+export interface PaginatedProductsResponse {
+  data: Product[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+// Log interface'leri
+export interface Log {
+  id: number;
+  message: string;
+  level: string;
+  timestamp: string;
+  exception?: string;
+  properties?: string;
+}
+
+export interface LogStats {
+  totalLogs: number;
+  errorLogs: number;
+  todayLogs: number;
+  thisWeekLogs: number;
+  thisMonthLogs: number;
+  levelDistribution: { level: string; count: number }[];
+}
+
+export interface PaginatedLogsResponse {
+  data: Log[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
 }

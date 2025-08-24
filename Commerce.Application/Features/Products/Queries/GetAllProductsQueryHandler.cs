@@ -1,12 +1,13 @@
-﻿using Commerce.Application.Features.Products.DTOs;
+using Commerce.Application.Features.Products.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain; // Make sure to include your Domain namespace
+using Commerce.Core.Common; // Make sure to include your Domain namespace
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Products.Queries
 {
-    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, ApiResponse<IEnumerable<ProductDto>>> // Updated return type
+    public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, ApiResponse<PaginatedProductsResponse>>
     {
         private readonly ApplicationDbContext _context;
 
@@ -15,7 +16,7 @@ namespace Commerce.Application.Features.Products.Queries
             _context = context;
         }
 
-        public async Task<ApiResponse<IEnumerable<ProductDto>>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken) // Updated return type
+        public async Task<ApiResponse<PaginatedProductsResponse>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
         {
             var query = _context.Products
                 .Include(p => p.Category)
@@ -31,6 +32,9 @@ namespace Commerce.Application.Features.Products.Queries
                 query = query.Where(p => p.Name.Contains(request.SearchTerm) ||
                                            p.Description!.Contains(request.SearchTerm) ||
                                            p.SKU.Contains(request.SearchTerm));
+
+            // Get total count before pagination
+            var totalCount = await query.CountAsync(cancellationToken);
 
             var products = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
@@ -51,7 +55,19 @@ namespace Commerce.Application.Features.Products.Queries
                 }).AsNoTracking()
                 .ToListAsync(cancellationToken);
 
-            return ApiResponse<IEnumerable<ProductDto>>.SuccessResponse(products);
+            var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+
+            var paginatedResponse = new PaginatedProductsResponse
+            {
+                Data = products,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                TotalPages = totalPages
+            };
+
+            return ApiResponse<PaginatedProductsResponse>.SuccessResponse(paginatedResponse);
         }
     }
 }
+

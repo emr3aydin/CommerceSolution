@@ -1,4 +1,4 @@
-﻿using Commerce.Application.Features.Categories.DTOs;
+using Commerce.Application.Features.Categories.DTOs;
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Commerce.Domain; 
+using Commerce.Core.Common; 
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Categories.Queries
 {
@@ -29,10 +30,10 @@ namespace Commerce.Application.Features.Categories.Queries
 
             if (category == null)
             {
-                return ApiResponse<CategoryDto>.ErrorResponse($"ID'si {request.Id} olan kategori bulunamadı.");
+                return ApiResponse<CategoryDto>.ErrorResponse($"ID'si {request.Id} olan kategori bulunamadi.");
             }
 
-            // Category varlığını CategoryDto'ya dönüştür
+            // Category varligini CategoryDto'ya d�n�st�r
             var categoryDto = new CategoryDto
             {
                 Id = category.Id,
@@ -44,7 +45,8 @@ namespace Commerce.Application.Features.Categories.Queries
                 ProductCount = category.Products.Count
             };
 
-            return ApiResponse<CategoryDto>.SuccessResponse(categoryDto, "Kategori başarıyla getirildi.");
+            return ApiResponse<CategoryDto>.SuccessResponse(categoryDto, "Kategori basariyla getirildi.");
         }
     }
 }
+

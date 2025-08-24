@@ -1,7 +1,8 @@
 using Commerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain; // Make sure to include your Domain namespace
+using Commerce.Core.Common; // Make sure to include your Domain namespace
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Products.Commands
 {
@@ -48,3 +49,4 @@ namespace Commerce.Application.Features.Products.Commands
         }
     }
 }
+

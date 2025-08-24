@@ -1,5 +1,6 @@
 using MediatR;
-using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Carts.Commands
 {
@@ -8,3 +9,4 @@ namespace Commerce.Application.Features.Carts.Commands
         int CartItemId
     ) : IRequest<ApiResponse<bool>>;
 }
+

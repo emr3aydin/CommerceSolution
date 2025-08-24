@@ -1,6 +1,9 @@
-﻿using Commerce.Domain;
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
+using Commerce.Core.Constants;
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using System;
@@ -15,11 +18,19 @@ namespace Commerce.Application.Features.Users.Commands
     {
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
+        private readonly ApplicationDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public RegisterUserCommandHandler(UserManager<User> userManager, RoleManager<ApplicationRole> roleManager)
+        public RegisterUserCommandHandler(
+            UserManager<User> userManager, 
+            RoleManager<ApplicationRole> roleManager,
+            ApplicationDbContext context,
+            IEmailService emailService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
+            _context = context;
+            _emailService = emailService;
         }
 
         public async Task<ApiResponse> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
@@ -42,7 +53,7 @@ namespace Commerce.Application.Features.Users.Commands
             if (!result.Succeeded)
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return ApiResponse.ErrorResponse($"Kullanıcı oluşturulurken bir hata oluştu: {errors}");
+                return ApiResponse.ErrorResponse($"Kullanici olusturulurken bir hata olustu: {errors}");
             }
 
             if (!await _roleManager.RoleExistsAsync("Customer"))
@@ -52,7 +63,46 @@ namespace Commerce.Application.Features.Users.Commands
 
             await _userManager.AddToRoleAsync(user, "Customer");
 
-            return ApiResponse.SuccessResponse("Kullanıcı başarı ile oluşturuldu.");
+            // Email dogrulama kodu olustur ve g�nder
+            var verificationCode = GenerateVerificationCode();
+            var emailVerification = new EmailVerification
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                VerificationCode = verificationCode,
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(15), // 15 dakika ge�erli
+                IsUsed = false
+            };
+
+            _context.EmailVerifications.Add(emailVerification);
+            await _context.SaveChangesAsync();
+
+            // Email g�nder
+            try
+            {
+                await _emailService.SendEmailVerificationCodeAsync(user.Email, user.FirstName, verificationCode);
+            }
+            catch (Exception ex)
+            {
+                // Email g�nderme hatasi olsa bile kayit tamamlandi
+                // Gelistirme ortaminda console'da g�sterelim
+                Console.WriteLine($"=== EMAIL VERIFICATION CODE ===");
+                Console.WriteLine($"User: {user.FirstName} ({user.Email})");
+                Console.WriteLine($"Verification Code: {verificationCode}");
+                Console.WriteLine($"Email Error: {ex.Message}");
+                Console.WriteLine($"================================");
+            }
+
+            return ApiResponse.SuccessResponse("Kullanici basari ile olusturuldu. Email adresinize g�nderilen dogrulama kodunu girerek hesabinizi aktiflestirin.");
+        }
+
+        private string GenerateVerificationCode()
+        {
+            var random = new Random();
+            return random.Next(100000, 999999).ToString(); // 6 haneli kod
         }
     }
-    }
+}
+
+

@@ -1,26 +1,30 @@
 using Commerce.Domain.Entities;
 using Commerce.Infrastructure.Persistence;
+using Commerce.Infrastructure.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Commerce.Domain; // Make sure to include your Domain namespace
+using Commerce.Core.Common;
+using Commerce.Domain.Entities;
 
 namespace Commerce.Application.Features.Orders.Commands
 {
-    public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, ApiResponse<int>> // Updated return type
+    public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, ApiResponse<int>>
     {
         private readonly ApplicationDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public CreateOrderCommandHandler(ApplicationDbContext context)
+        public CreateOrderCommandHandler(ApplicationDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
-        public async Task<ApiResponse<int>> Handle(CreateOrderCommand request, CancellationToken cancellationToken) // Updated return type
+        public async Task<ApiResponse<int>> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
         {
-            var userExists = await _context.Users
-                .AnyAsync(u => u.Id == request.UserId, cancellationToken);
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-            if (!userExists)
+            if (user == null)
                 return ApiResponse<int>.ErrorResponse("Kullanıcı bulunamadı.");
 
             var orderNumber = GenerateOrderNumber();
@@ -70,6 +74,27 @@ namespace Commerce.Application.Features.Orders.Commands
             order.TotalAmount = totalAmount;
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            // Send order confirmation email
+            try
+            {
+                if (!string.IsNullOrEmpty(user.Email))
+                {
+                    await _emailService.SendOrderConfirmationEmailAsync(
+                        user.Email, 
+                        user.FirstName + " " + user.LastName, 
+                        order.OrderNumber, 
+                        order.TotalAmount, 
+                        order.OrderDate);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log email error but don't fail the order creation
+                // You might want to add logging here
+                Console.WriteLine($"Failed to send order confirmation email: {ex.Message}");
+            }
+
             return ApiResponse<int>.SuccessResponse(order.Id, "Sipariş başarıyla oluşturuldu.");
         }
 
@@ -79,3 +104,4 @@ namespace Commerce.Application.Features.Orders.Commands
         }
     }
 }
+
