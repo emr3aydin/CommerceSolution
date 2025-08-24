@@ -196,9 +196,45 @@ NODE_ENV=development
     "Issuer": "https://localhost:7057",
     "Audience": "https://localhost:7057",
     "Key": "thisisasecretkeythatshouldbeverylongandsecure"
+  },
+  "EmailSettings": {
+    "SmtpServer": "smtp.mailersend.net",
+    "SmtpPort": 587,
+    "SenderEmail": "<mailer-send-smtp-user@example.com>",
+    "SenderPassword": "<smtp-password-or-api-key>",
+    "SenderName": "Commerce API",
+    "EnableSsl": true
   }
 }
 ```
+
+### Email Servisi (SMTP) Kurulumu
+
+- Email gönderimleri `Commerce.Infrastructure.Services.EmailService` ile yapılır ve `EmailSettings` config bölümünden beslenir.
+- Her SMTP sağlayıcıyla uyumludur (MailerSend, SendGrid SMTP relay, Gmail SMTP vb.). Aşağıda MailerSend örneği verilmiştir.
+
+Adımlar:
+1. SMTP sağlayıcınızdan host, port, kullanıcı (genelde gönderen email) ve parola/API Key alın.
+2. `Commerce.API/appsettings.json > EmailSettings` alanını doldurun.
+3. Geliştirmede TLS/SSL için `EnableSsl: true` ve port 587 (STARTTLS) genelde yeterlidir.
+
+Örnek (MailerSend):
+```json
+"EmailSettings": {
+  "SmtpServer": "smtp.mailersend.net",
+  "SmtpPort": 587,
+  "SenderEmail": "MS_xxx@test-xxxxxx.mlsender.net",
+  "SenderPassword": "mssp.xxxxxx.yyyyy",
+  "SenderName": "Commerce API",
+  "EnableSsl": true
+}
+```
+
+Notlar ve İpuçları:
+- SenderEmail, sağlayıcının tanıttığı domain/e-posta ile eşleşmelidir (SPF/DKIM ayarlı olmalı).
+- Geliştirme ortamında bazı kurum ağlarında SMTP portları engelli olabilir; farklı ağ veya sağlayıcı deneyin.
+- Hata durumlarını backend loglarında görebilirsiniz (EmailService, ILogger ile ayrıntı loglar yazıyor).
+- Üretimde sırları appsettings yerine kullanıcı sır yöneticilerinde (User Secrets/Azure Key Vault) tutun.
 
 ## 🏃‍♂️ Çalıştırma
 
