@@ -33,64 +33,82 @@ export default function Login() {
         try {
             // Önce mevcut auth verilerini temizle
             clearAuthData();
+            console.log('🧹 Cleared existing auth data');
             
             const response = await authAPI.login({ email, password });
+            console.log('📥 Login response:', response);
 
             if (response.success && response.data) {
                 const tokenData = response.data as TokenResponseDto;
+                console.log('🔑 Token payload:', tokenData);
                 
                 // Token'ları localStorage'a kaydet
                 localStorage.setItem('accessToken', tokenData.accessToken);
                 localStorage.setItem('refreshToken', tokenData.refreshToken);
                 localStorage.setItem('tokenExpiry', tokenData.expiresAt);
+
+                // Yazdıktan sonra doğrula
+                console.log('📦 localStorage after set:', {
+                    accessToken: localStorage.getItem('accessToken')?.slice(0,20) + '...',
+                    refreshToken: (localStorage.getItem('refreshToken') || '').length,
+                    tokenExpiry: localStorage.getItem('tokenExpiry')
+                });
                 
                 logAuthState(); // Auth durumunu logla
 
-                // Kullanıcı bilgilerini al
+                // Kullanıcı bilgilerini almaya çalış (başarısız olursa da devam et)
+                console.log('🔍 Login: Attempting to get current user...');
+                
                 try {
                     const userResponse = await authAPI.getCurrentUser();
+                    console.log('📤 Login: getCurrentUser response:', userResponse);
                     
                     if (userResponse.success && userResponse.data) {
                         localStorage.setItem('userInfo', JSON.stringify(userResponse.data));
-                        
-                        console.log('🚀 Login: Dispatching navbar update events...');
-                        
-                        // Navbar'ı güncellemek için multiple event dispatch et
-                        window.dispatchEvent(new Event('userInfoChanged'));
-                        window.dispatchEvent(new CustomEvent('forceNavbarUpdate', { 
-                          detail: userResponse.data 
-                        }));
-                        window.dispatchEvent(new Event('storage')); // Manual storage event
-                        
-                        console.log('🎯 Login: Events dispatched, redirecting in 200ms...');
-                        
-                        // Kısa bekleme sonrası yönlendir
-                        setTimeout(() => {
-                            console.log('🔄 Login: Redirecting to:', redirectUrl);
-                            router.push(redirectUrl);
-                        }, 200);
+                        console.log('💾 Login: User info saved successfully');
                     } else {
-                        router.push(redirectUrl);
+                        console.warn('⚠️ Login: getCurrentUser failed, continuing anyway');
                     }
                 } catch (userError: any) {
-                    // Kullanıcı bilgisi alınamasa bile login'i başarılı say
-                    router.push(redirectUrl);
+                    console.warn('⚠️ Login: Error getting user info, continuing anyway:', userError.message);
                 }
+                
+                // Giriş başarılı - header'ı bilgilendir
+                window.dispatchEvent(new Event('userInfoChanged'));
+                
+                // Kısa delay sonra redirect (gözlem için biraz artırıldı)
+                console.log('✅ Login: Login completed, redirecting in 800ms...');
+                setTimeout(() => {
+                    // SPA navigasyonu
+                    try { router.push(redirectUrl || '/'); } catch { window.location.href = redirectUrl || '/'; }
+                }, 800);
                 
             } else {
                 setError(response.message || 'Giriş başarısız.');
             }
         } catch (error: any) {
+            // Detaylı hata loglama
+            console.error('🔥 Login Error Details:', {
+                error: error,
+                message: error.message,
+                name: error.name,
+                stack: error.stack
+            });
+            
             // Detaylı hata mesajı
             let errorMessage = 'Giriş başarısız. ';
             
             if (error.message?.includes('session expired')) {
                 errorMessage += 'Oturum süresi dolmuş. Lütfen tekrar deneyin.';
                 localStorage.clear();
-            } else if (error.message?.includes('bağlanılamıyor')) {
-                errorMessage += 'Sunucuya bağlanılamıyor. İnternet bağlantınızı kontrol edin.';
+            } else if (error.message?.includes('bağlanılamıyor') || error.message?.includes('Network error')) {
+                errorMessage += 'Sunucuya bağlanılamıyor. SSL sertifikasını kabul ettiniz mi?';
             } else if (error.message?.includes('401')) {
                 errorMessage += 'E-posta veya şifre hatalı.';
+            } else if (error.message?.includes('404')) {
+                errorMessage += 'API endpoint bulunamadı. API çalışıyor mu?';
+            } else if (error.message?.includes('fetch')) {
+                errorMessage += 'Bağlantı hatası. SSL sertifikasını kabul edin: https://localhost:7057';
             } else {
                 errorMessage += error.message || 'Lütfen bilgilerinizi kontrol edin.';
             }

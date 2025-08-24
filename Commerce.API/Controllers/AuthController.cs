@@ -85,7 +85,10 @@ namespace Commerce.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetCurrentUser()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // Hem NameIdentifier hem de JWT 'sub' claim'ini dene
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst("sub")?.Value;
+
             if (userId == null)
             {
                 return Unauthorized(ApiResponse.ErrorResponse("Kullanici kimligi bulunamadi."));
@@ -229,7 +232,7 @@ namespace Commerce.API.Controllers
         [HttpPost("resend-email-verification")]
         public async Task<IActionResult> ResendEmailVerification([FromBody] ResendEmailVerificationDto resendDto)
         {
-            // Kapsamli debug için loglar
+            // Kapsamli debug iï¿½in loglar
             Console.WriteLine("=== RESEND EMAIL VERIFICATION ENDPOINT CALLED ===");
             Console.WriteLine($"Request Body DTO: {(resendDto == null ? "NULL" : "NOT NULL")}");
             

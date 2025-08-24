@@ -1,8 +1,6 @@
 // API Configuration
 export const apiConfig = {
-  baseUrl: process.env.NODE_ENV === 'production' 
-    ? 'https://api.yourdomain.com' 
-    : 'https://localhost:7057',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057',
   endpoints: {
     auth: {
       login: '/api/Auth/login',
@@ -11,7 +9,7 @@ export const apiConfig = {
       createAdmin: '/api/Auth/create-admin',
     },
     products: '/api/Products',
-    categories: '/Categories',
+    categories: '/api/Categories',
     orders: '/api/Orders',
     carts: '/api/Carts',
   }

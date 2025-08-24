@@ -13,6 +13,9 @@ namespace Commerce.Infrastructure
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
+            // HttpContext accessor for services and DbContexts needing current request context
+            services.AddHttpContextAccessor();
+
             // Database Context
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
@@ -45,6 +48,21 @@ namespace Commerce.Infrastructure
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
+
+            // Identity API-only yapılandırması (redirect'leri devre dışı bırak)
+            services.ConfigureApplicationCookie(options =>
+            {
+                options.Events.OnRedirectToLogin = context =>
+                {
+                    context.Response.StatusCode = 401;
+                    return Task.CompletedTask;
+                };
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    context.Response.StatusCode = 403;
+                    return Task.CompletedTask;
+                };
+            });
 
             // Application Services
             services.AddScoped<IJwtTokenService, JwtTokenService>();

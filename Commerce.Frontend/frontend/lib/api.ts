@@ -18,6 +18,26 @@ import {
     ResetPasswordRequest
 } from '@/types'; const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7057';
 
+// Token refresh mutex to prevent concurrent refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+// Yardımcılar (expiry kontrolü)
+const isAccessTokenExpired = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const expiry = localStorage.getItem('tokenExpiry');
+    if (!expiry) return false;
+    return Date.now() >= new Date(expiry).getTime();
+};
+
+const isAccessTokenExpiringSoon = (thresholdMs: number = 5 * 60 * 1000): boolean => {
+    if (typeof window === 'undefined') return false;
+    const expiry = localStorage.getItem('tokenExpiry');
+    if (!expiry) return false;
+    const timeLeft = new Date(expiry).getTime() - Date.now();
+    return timeLeft > 0 && timeLeft < thresholdMs;
+};
+
 // Temel API istemcisi
 export const apiClient = {
     baseURL: API_BASE_URL,
@@ -54,7 +74,7 @@ export const apiClient = {
             }
         }
 
-        const config: RequestInit = {
+        const config: RequestInit & { _retry?: boolean } = {
             ...options,
             headers: {
                 ...defaultHeaders,
@@ -65,28 +85,51 @@ export const apiClient = {
         try {
             const response = await fetch(url, config);
 
-            // 401 durumunda token yenilemeyi dene
+            // 401 durumunda token yenilemeyi sadece gerekli ise dene (tek seferlik)
             if (response.status === 401 && typeof window !== 'undefined') {
-                const refreshed = await this.tryRefreshToken();
-                if (refreshed) {
-                    // Token yenilendi, request'i tekrar dene
-                    const newToken = localStorage.getItem('accessToken');
-                    if (newToken) {
-                        config.headers = {
-                            ...config.headers,
-                            'Authorization': `Bearer ${newToken}`,
-                        };
-                        return this.request<T>(endpoint, options);
+                const token = localStorage.getItem('accessToken');
+                const refreshToken = localStorage.getItem('refreshToken');
+
+                const skipEndpoints = [
+                    '/api/Auth/login',
+                    '/api/Auth/register',
+                    '/api/Auth/refresh-token',
+                    '/api/Auth/forgot-password',
+                    '/api/Auth/reset-password',
+                    '/api/Auth/me'
+                ];
+
+                const isSkippable = skipEndpoints.some(p => endpoint.includes(p));
+
+                // Eğer token var ve endpoint uygun ise, sadece expire/expiring durumunda refresh dene
+                if (!config._retry && token && refreshToken && !isSkippable && (isAccessTokenExpired() || isAccessTokenExpiringSoon())) {
+                    const refreshed = await this.tryRefreshToken();
+                    if (refreshed) {
+                        // Tekrar denemede sonsuz döngüyü engelle
+                        config._retry = true;
+                        const newToken = localStorage.getItem('accessToken');
+                        if (newToken) {
+                            (config.headers as Record<string, string>) = {
+                                ...(config.headers as Record<string, string>),
+                                'Authorization': `Bearer ${newToken}`,
+                            };
+                        }
+                        return this.request<T>(endpoint, config);
                     }
-                } else {
-                    // Token yenilenemezse logout yap ve login sayfasına yönlendir
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-                    localStorage.removeItem('tokenExpiry');
-                    localStorage.removeItem('userInfo');
-                    window.location.href = '/login';
-                    throw new Error('Session expired. Please login again.');
                 }
+
+                // Skippable endpoint'lerde (özellikle /api/Auth/me) storage'ı temizleme; sadece hata fırlat
+                if (isSkippable) {
+                    throw new Error('Unauthorized.');
+                }
+
+                // Buraya düşersek refresh yapma; yetkisiz say ve yönlendir/hatayı fırlat
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('tokenExpiry');
+                localStorage.removeItem('userInfo');
+                window.location.href = '/login';
+                throw new Error('Unauthorized. Please login again.');
             }
 
             if (!response.ok) {
@@ -141,7 +184,8 @@ export const apiClient = {
             endpoint.includes('/api/Auth/register') || 
             endpoint.includes('/api/Auth/refresh-token') ||
             endpoint.includes('/api/Auth/forgot-password') ||
-            endpoint.includes('/api/Auth/reset-password')) {
+            endpoint.includes('/api/Auth/reset-password') ||
+            endpoint.includes('/api/Auth/me')) {
             return false;
         }
 
@@ -154,23 +198,24 @@ export const apiClient = {
             endpoint: endpoint 
         });
         
+        // Eğer token yoksa refresh yapma
         if (!token || !expiry) {
-            console.log('No token or expiry found');
+            console.log('No token or expiry found, skipping refresh');
             return false;
         }
 
-        // Token 1 dakika içinde expire olacaksa yenile
+        // Token 5 dakika içinde expire olacaksa yenile
         const expiryDate = new Date(expiry);
         const now = new Date();
-        const oneMinute = 60 * 1000; // 1 dakika ms cinsinden
+        const fiveMinutes = 5 * 60 * 1000; // 5 dakika ms cinsinden
         
         const timeLeft = expiryDate.getTime() - now.getTime();
-        const shouldRefresh = timeLeft < oneMinute;
+        const shouldRefresh = timeLeft < fiveMinutes && timeLeft > 0; // Token geçerli ama 5 dk kala
         
         console.log('Token expiry check:', { 
             expiryDate: expiryDate.toISOString(), 
             now: now.toISOString(), 
-            timeLeft: timeLeft,
+            timeLeft: Math.round(timeLeft / 1000) + ' seconds',
             shouldRefresh: shouldRefresh
         });
         
@@ -179,7 +224,30 @@ export const apiClient = {
 
     // Token yenilemeyi dene
     async tryRefreshToken(): Promise<boolean> {
+        // Eğer zaten token yenileme işlemi devam ediyorsa, o işlemi bekle
+        if (isRefreshing && refreshPromise) {
+            console.log('Token refresh already in progress, waiting...');
+            return await refreshPromise;
+        }
+
         console.log('Attempting token refresh...');
+        
+        // Refresh işlemini başlat
+        isRefreshing = true;
+        refreshPromise = this.performTokenRefresh();
+        
+        try {
+            const result = await refreshPromise;
+            return result;
+        } finally {
+            // Refresh işlemi tamamlandı
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    },
+
+    // Gerçek token refresh işlemi
+    async performTokenRefresh(): Promise<boolean> {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
             if (!refreshToken) {
@@ -330,7 +398,17 @@ export const authAPI = {
     },
 
     async getCurrentUser() {
-        return apiClient.get('/api/Auth/me');
+        try {
+            return await apiClient.get('/api/Auth/me');
+        } catch (error) {
+            console.error('getCurrentUser failed:', error);
+            // Hata durumunda varsayılan response döndür
+            return {
+                success: false,
+                message: 'User info could not be retrieved',
+                data: null
+            };
+        }
     },
 
     async refreshToken() {

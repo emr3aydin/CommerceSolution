@@ -64,12 +64,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('RefreshCart - Token:', token ? 'exists' : 'null');
 
         if (!token) {
-          console.log('RefreshCart - No token, loading from localStorage');
-          const savedCart = localStorage.getItem('cart');
-          console.log('RefreshCart - Saved cart:', savedCart);
-          if (savedCart && savedCart !== 'undefined') {
-            setItems(JSON.parse(savedCart));
-          }
+          console.log('RefreshCart - No token, clearing cart for unauthenticated user');
+          setItems([]);
+          localStorage.removeItem('cart');
+          localStorage.setItem('cartItemCount', '0');
           return;
         }
 
@@ -107,6 +105,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('RefreshCart - Cart items is empty or undefined, setting empty array');
             setItems([]);
           }
+        } else {
+          console.log('RefreshCart - API response unsuccessful, setting empty cart');
+          setItems([]);
         }
       } catch (error) {
         console.error('Cart loading error:', error);
@@ -116,16 +117,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: error instanceof Error ? error.name : 'Unknown'
         });
         
-        console.log('RefreshCart - Error occurred, falling back to localStorage');
-        try {
-          const savedCart = localStorage.getItem('cart');
-          if (savedCart && savedCart !== 'undefined') {
-            setItems(JSON.parse(savedCart));
-          }
-        } catch (localError) {
-          console.error('Local cart loading error:', localError);
-          localStorage.removeItem('cart');
+        // If there's an API error and user is authenticated, show them an error message
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          console.log('RefreshCart - API error for authenticated user, clearing cart');
+          addToast({
+            title: 'Sepet yüklenemedi!',
+            description: 'Sepetiniz yüklenirken bir hata oluştu. Lütfen tekrar deneyin.',
+            color: 'danger',
+            timeout: 5000,
+            shouldShowTimeoutProgress: true,
+          });
         }
+        setItems([]);
+        localStorage.removeItem('cart');
+        localStorage.setItem('cartItemCount', '0');
       }
     }
   };
@@ -226,48 +232,36 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = localStorage.getItem('accessToken');
 
-      if (token) {
-        const item = items.find(item => item.product.id === productId);
-        if (item && !item.id.startsWith('local-')) {
-          const response = await cartAPI.removeFromCart(parseInt(item.id));
-          if (response.success) {
-            await refreshCart();
-            console.log(`${item.product.name} sepetten kaldırıldı`);
-            addToast({
-              title: `${item.product.name} sepetten kaldırıldı!`,
-              description: 'Ürün sepetinizden başarıyla kaldırıldı.',
-              color: 'success',
-              timeout: 5000,
-              shouldShowTimeoutProgress: true,
-            });
-          } else {
-            throw new Error(response.message);
-          }
-        }
-      } else {
-     
-        setItems(prevItems => {
-          const item = prevItems.find(item => item.product.id === productId);
-          const newItems = prevItems.filter(item => item.product.id !== productId);
-          localStorage.setItem('cart', JSON.stringify(newItems));
-
-          if (item) {
-            console.log(`${item.product.name} sepetten kaldırıldı`);
-            addToast({
-              title: `${item.product.name} sepetten kaldırıldı!`,
-              description: 'Ürün sepetinizden başarıyla kaldırıldı.',
-              color: 'success',
-              timeout: 5000,
-              shouldShowTimeoutProgress: true,
-            });
-          }
-
-          return newItems;
+      if (!token) {
+        addToast({
+          title: 'Giriş yapmalısınız!',
+          description: 'Sepetten ürün kaldırmak için lütfen giriş yapın.',
+          color: 'warning',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
         });
+        return;
+      }
+
+      const item = items.find(item => item.product.id === productId);
+      if (item && !item.id.startsWith('local-')) {
+        const response = await cartAPI.removeFromCart(parseInt(item.id));
+        if (response.success) {
+          await refreshCart();
+          console.log(`${item.product.name} sepetten kaldırıldı`);
+          addToast({
+            title: `${item.product.name} sepetten kaldırıldı!`,
+            description: 'Ürün sepetinizden başarıyla kaldırıldı.',
+            color: 'success',
+            timeout: 5000,
+            shouldShowTimeoutProgress: true,
+          });
+        } else {
+          throw new Error(response.message);
+        }
       }
     } catch (error: any) {
       console.error('Remove from cart error:', error);
-      console.log("Hata: Ürün sepetten kaldırılırken bir hata oluştu!");
       addToast({
         title: 'Sepetten kaldırma hatası!',
         description: error.message || 'Ürün sepetten kaldırılırken bir hata oluştu.',
@@ -279,6 +273,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateQuantity = async (productId: string | number, quantity: number) => {
+    const token = localStorage.getItem('accessToken');
+    
+    if (!token) {
+      addToast({
+        title: 'Giriş yapmalısınız!',
+        description: 'Sepeti güncellemek için lütfen giriş yapın.',
+        color: 'warning',
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
+      return;
+    }
+
     if (quantity <= 0) {
       await removeFromCart(productId);
       return;
@@ -328,25 +335,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quantity = currentProduct.stock; 
       }
 
-      const token = localStorage.getItem('accessToken');
-
-      if (token) {
-        const item = items.find(item => item.product.id === productId);
-        if (item && !item.id.startsWith('local-')) {
-          await cartAPI.removeFromCart(parseInt(item.id));
-          await cartAPI.addToCart({
-            productId: item.product.id,
-            quantity: quantity
-          });
-          await refreshCart();
-        }
-      } else {
-        console.error('Sepeti güncellemek için giriş yapmalısınız');
-        return;
+      const item = items.find(item => item.product.id === productId);
+      if (item && !item.id.startsWith('local-')) {
+        await cartAPI.removeFromCart(parseInt(item.id));
+        await cartAPI.addToCart({
+          productId: item.product.id,
+          quantity: quantity
+        });
+        await refreshCart();
       }
     } catch (error: any) {
       console.error('Update quantity error:', error);
-      console.log("Hata: Miktar güncellenirken bir hata oluştu!");
+      addToast({
+        title: 'Miktar güncelleme hatası!',
+        description: error.message || 'Miktar güncellenirken bir hata oluştu.',
+        color: 'danger',
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 
@@ -354,24 +360,43 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = localStorage.getItem('accessToken');
 
-      if (token) {
-        // Backend'den temizle
-        const response = await cartAPI.clearCart();
-        if (response.success) {
-          setItems([]);
-          console.log("Sepet temizlendi");
-        } else {
-          throw new Error(response.message);
-        }
-      } else {
-        // Local storage'ı temizle
+      if (!token) {
+        addToast({
+          title: 'Giriş yapmalısınız!',
+          description: 'Sepeti temizlemek için lütfen giriş yapın.',
+          color: 'warning',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
+        return;
+      }
+
+      // Backend'den temizle
+      const response = await cartAPI.clearCart();
+      if (response.success) {
         setItems([]);
         localStorage.removeItem('cart');
+        localStorage.setItem('cartItemCount', '0');
+        addToast({
+          title: 'Sepet temizlendi!',
+          description: 'Sepetinizdeki tüm ürünler başarıyla kaldırıldı.',
+          color: 'success',
+          timeout: 5000,
+          shouldShowTimeoutProgress: true,
+        });
         console.log("Sepet temizlendi");
+      } else {
+        throw new Error(response.message);
       }
     } catch (error: any) {
       console.error('Clear cart error:', error);
-      console.log("Hata: Sepet temizlenirken bir hata oluştu!");
+      addToast({
+        title: 'Sepet temizleme hatası!',
+        description: error.message || 'Sepet temizlenirken bir hata oluştu.',
+        color: 'danger',
+        timeout: 5000,
+        shouldShowTimeoutProgress: true,
+      });
     }
   };
 

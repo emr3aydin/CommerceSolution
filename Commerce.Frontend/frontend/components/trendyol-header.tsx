@@ -8,7 +8,7 @@ import { Avatar } from "@heroui/avatar";
 import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/dropdown";
 import NextLink from "next/link";
 import { SearchIcon, ShoppingCartIcon, UserIcon } from "@/components/icons";
-import { categoryAPI } from "@/lib/api";
+import { categoryAPI, authAPI } from "@/lib/api";
 import { Category } from "@/types";
 
 export const TrendyolHeader = () => {
@@ -26,7 +26,7 @@ export const TrendyolHeader = () => {
 
   useEffect(() => {
     if (mounted && typeof window !== 'undefined') {
-      const checkUserInfo = () => {
+      const checkUserInfo = async () => {
         console.log('🔍 TrendyolHeader: checkUserInfo called');
         try {
           const userInfo = localStorage.getItem('userInfo');
@@ -42,6 +42,23 @@ export const TrendyolHeader = () => {
             const parsedUser = JSON.parse(userInfo);
             console.log('✅ TrendyolHeader: Setting user to:', parsedUser.firstName);
             setUser(parsedUser);
+          } else if (accessToken && (!userInfo || userInfo === 'undefined')) {
+            // Token var ama userInfo yoksa, me endpoint'inden çekmeyi dene
+            console.log('🧾 TrendyolHeader: accessToken exists but userInfo missing, fetching /api/Auth/me');
+            try {
+              const me = await authAPI.getCurrentUser();
+              if (me.success && me.data) {
+                localStorage.setItem('userInfo', JSON.stringify(me.data));
+                setUser(me.data);
+                console.log('✅ TrendyolHeader: User info fetched and set');
+              } else {
+                console.warn('⚠️ TrendyolHeader: /me failed, keeping logged-out UI');
+                setUser(null);
+              }
+            } catch (err) {
+              console.warn('⚠️ TrendyolHeader: /me request error', err);
+              setUser(null);
+            }
           } else {
             console.log('❌ TrendyolHeader: Clearing user');
             setUser(null);
@@ -132,17 +149,15 @@ export const TrendyolHeader = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('cartItemCount');
+        await authAPI.logout();
         setUser(null);
         setCartItemCount(0);
-        window.location.href = '/';
       } catch (error) {
-        console.error('Logout error:', error);
+        console.error('Logout API error:', error);
+      } finally {
         window.location.href = '/';
       }
     }

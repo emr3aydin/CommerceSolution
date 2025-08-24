@@ -4,7 +4,7 @@ namespace Commerce.Application.Features.Users.DTOs
     {
         public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
-        public DateTime ExpiresAt { get; set; }
+        public string ExpiresAt { get; set; } = string.Empty; // ISO 8601 string format
         public string TokenType { get; set; } = "Bearer";
     }
 }

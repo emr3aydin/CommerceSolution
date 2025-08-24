@@ -135,202 +135,91 @@ Proje **Clean Architecture** prensiplerine uygun olarak tasarlanmıştır:
 - ✅ SQL Server (LocalDB veya tam sürüm)
 - ✅ Git
 
-### Backend Kurulumu
+### Hızlı Başlangıç (Otomatik Migration’lı)
 
-1. **Repository'yi klonlayın:**
+1. Repository’yi klonlayın
    ```bash
    git clone https://github.com/your-username/CommerceSolution.git
    cd CommerceSolution
    ```
 
-2. **Dependencies yükleyin:**
+2. Backend bağımlılıklarını yükleyin
    ```bash
    dotnet restore
    ```
 
-3. **Veritabanını oluşturun:**
+3. HTTPS dev sertifikasını güvenilir yapın (ilk kez)
    ```bash
-   cd Commerce.Infrastructure
-   dotnet ef database update --startup-project ../Commerce.API/Commerce.API.csproj
+   dotnet dev-certs https --trust
    ```
 
-### Frontend Kurulumu
+4. appsettings.json bağlantı dizesini kontrol edin
+   - `Commerce.API/appsettings.json > ConnectionStrings:DefaultConnection` yeni makineye uygun olmalı.
+   - Örnek: `(localdb)\\MSSQLLocalDB;Database=CommerceDB;Trusted_Connection=True;Encrypt=False`
 
-1. **Frontend dizinine gidin:**
+5. Backend’i çalıştırın (ilk çalıştırmada DB migration’ları otomatik uygulanır)
+   ```bash
+   dotnet run --project Commerce.API/Commerce.API.csproj --launch-profile https
+   ```
+
+6. Frontend’i çalıştırın
    ```bash
    cd Commerce.Frontend/frontend
+   npm install
+   # .env.local dosyasında API URL’ini kontrol edin
+   npm run dev
    ```
 
-2. **Dependencies yükleyin:**
-   ```bash
-   npm install
-   ```
+> Not: Program.cs içinde ApplicationDbContext ve LogDbContext için `Database.Migrate()` çağrıları eklendi. Bu sayede ilk çalıştırmada veritabanı şeması otomatik oluşturulur/güncellenir.
+
+### Frontend Ortam Değişkenleri
+
+`Commerce.Frontend/frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=https://localhost:7057
+NODE_ENV=development
+```
 
 ## 🔧 Yapılandırma
 
-### Backend Yapılandırması
+### Backend Yapılandırması (Özet)
 
-`Commerce.API/appsettings.json` dosyasını düzenleyin:
+`Commerce.API/appsettings.json`:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=CommerceDB;Trusted_Connection=true;TrustServerCertificate=true;"
+    "DefaultConnection": "Server=(localdb)\\\\MSSQLLocalDB;Database=CommerceDB;Trusted_Connection=True;Encrypt=False"
   },
-  "JwtSettings": {
-    "SecretKey": "YourVerySecureSecretKeyHere",
-    "Issuer": "Commerce.API",
-    "Audience": "Commerce.Frontend",
-    "ExpirationInMinutes": 60
-  },
-  "EmailSettings": {
-    "SmtpServer": "your-smtp-server",
-    "Port": 587,
-    "Username": "your-email",
-    "Password": "your-password",
-    "EnableSsl": true
+  "Jwt": {
+    "Issuer": "https://localhost:7057",
+    "Audience": "https://localhost:7057",
+    "Key": "thisisasecretkeythatshouldbeverylongandsecure"
   }
 }
 ```
 
-### Frontend Yapılandırması
-
-`Commerce.Frontend/frontend/.env.local` dosyası oluşturun:
-
-```env
-NEXT_PUBLIC_API_URL=https://localhost:7000
-NEXT_PUBLIC_APP_NAME=Commerce Solution
-```
-
 ## 🏃‍♂️ Çalıştırma
 
-### Backend'i Çalıştırma
+### Backend
+- Task: VS Code > Tasks: Run Task > Run Backend API
+- Manuel: `dotnet run --project Commerce.API/Commerce.API.csproj --launch-profile https`
+- Swagger: `https://localhost:7057/swagger`
 
-```bash
-# Ana dizinde
-dotnet run --project Commerce.API/Commerce.API.csproj
-
-# Veya VS Code ile
-# Ctrl+Shift+P > Tasks: Run Task > Run Backend API
-```
-
-Backend şu adreste çalışacaktır: `https://localhost:7000`
-
-### Frontend'i Çalıştırma
-
-```bash
-cd Commerce.Frontend/frontend
-npm run dev
-```
-
-Frontend şu adreste çalışacaktır: `http://localhost:3000`
+### Frontend
+- `cd Commerce.Frontend/frontend && npm run dev`
+- `http://localhost:3000`
 
 ## 📚 API Dökümanları
+- Swagger UI: `https://localhost:7057/swagger`
+- OpenAPI JSON: `https://localhost:7057/swagger/v1/swagger.json`
 
-API çalıştığında Swagger UI şu adreste erişilebilir:
-- **Swagger UI**: `https://localhost:7000/swagger`
-- **OpenAPI JSON**: `https://localhost:7000/swagger/v1/swagger.json`
-
-### Ana Endpoint'ler
-
-#### 🔐 Authentication
-- `POST /api/auth/register` - Kullanıcı kaydı
-- `POST /api/auth/login` - Giriş yapma
-- `POST /api/auth/verify-email` - Email doğrulama
-- `POST /api/auth/refresh-token` - Token yenileme
-
-#### 👤 Users
-- `GET /api/users/current` - Mevcut kullanıcı bilgileri
-- `PUT /api/users/profile` - Profil güncelleme
-- `POST /api/users/change-password` - Şifre değiştirme
-
-#### 🛍️ Products
-- `GET /api/products` - Tüm ürünler
-- `GET /api/products/{id}` - Ürün detayı
-- `GET /api/products/category/{categoryId}` - Kategoriye göre ürünler
-
-#### 🛒 Carts
-- `GET /api/carts/user/{userId}` - Kullanıcı sepeti
-- `POST /api/carts/add` - Sepete ürün ekleme
-- `DELETE /api/carts/remove` - Sepetten ürün çıkarma
-
-#### 📦 Orders
-- `GET /api/orders` - Kullanıcı siparişleri
-- `POST /api/orders` - Sipariş oluşturma
-- `GET /api/orders/{id}` - Sipariş detayı
-
-## 🧪 Testing
-
-### Unit Testler
-```bash
-dotnet test
-```
-
-### Integration Testler
-```bash
-dotnet test --filter Category=Integration
-```
-
-### Frontend Testler
-```bash
-cd Commerce.Frontend/frontend
-npm test
-```
-
-## 📝 Özellikler
-
-### ✅ Tamamlanan Özellikler
-
-- [x] Kullanıcı kaydı ve email doğrulama
-- [x] JWT tabanlı authentication
-- [x] Profil yönetimi ve şifre değiştirme
-- [x] Ürün listeleme ve kategorilere göre filtreleme
-- [x] Sepet yönetimi (ekleme, çıkarma, temizleme)
-- [x] Sipariş oluşturma ve takip
-- [x] Responsive frontend tasarımı
-- [x] Real-time navbar güncelleme
-- [x] Global exception handling
-- [x] Validation ve error handling
-- [x] Clean Architecture implementation
-
-### 🚧 Geliştirme Aşamasında
-
-- [ ] Payment integration
-- [ ] Advanced search ve filtering
-- [ ] Product reviews ve ratings
-- [ ] Wish list functionality
-- [ ] Admin dashboard
-- [ ] Email notifications
-- [ ] File upload (product images)
-- [ ] Caching implementation
-- [ ] API rate limiting
-
-## 🤝 Katkıda Bulunma
-
-1. Projeyi fork edin
-2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
-3. Değişikliklerinizi commit edin (`git commit -m 'Add amazing feature'`)
-4. Branch'inizi push edin (`git push origin feature/amazing-feature`)
-5. Pull Request oluşturun
-
-### Geliştirme Kuralları
-
-- **Clean Architecture** prensiplerine uyun
-- **SOLID** prensiplerine dikkat edin
-- Unit testler yazın
-- Kod dokumentasyonu ekleyin
-- Git commit mesajlarında [Conventional Commits](https://www.conventionalcommits.org/) kullanın
-
-## 📄 Lisans
-
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
-
-## 👨‍💻 Geliştirici
-
-**Emre Aydın**
-- GitHub: [@emreaydin-dev](https://github.com/emreaydin-dev)
-- LinkedIn: [Emre Aydın](https://linkedin.com/in/emreaydin-dev)
+## Bilinen Notlar
+- Kimlik doğrulama JWT Bearer’dır (cookie değil). Authorization: Bearer <token> başlığı zorunlu.
+- İlk giriş için email doğrulaması gereklidir (Identity RequireConfirmedEmail = true).
+- CORS: 3000/3001 (http/https) izinli.
 
 ---
 
-⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!
+Herhangi bir sorun için Issues kısmından bildirebilirsiniz.

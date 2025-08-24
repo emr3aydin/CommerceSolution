@@ -113,7 +113,7 @@ namespace Commerce.Application.Features.Users.Commands
                 {
                     AccessToken = accessToken,
                     RefreshToken = refreshToken.Token,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(60).ToString("o"), // ISO 8601 format
                     TokenType = "Bearer"
                 };
 

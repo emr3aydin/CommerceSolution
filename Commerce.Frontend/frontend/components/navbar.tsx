@@ -46,9 +46,10 @@ export const Navbar = () => {
 
   useEffect(() => {
     // Sadece mount edildikten sonra localStorage'a eriş
-    console.log('⚙️ Navbar: Second useEffect triggered, mounted:', mounted);
+    console.log('⚙️ Navbar: Auth check useEffect triggered, mounted:', mounted);
     if (mounted && typeof window !== 'undefined') {
-      console.log('✅ Navbar: Setting up event listeners and initial check');
+      console.log('✅ Navbar: Setting up authentication check');
+      
       const checkUserInfo = () => {
         console.log('🔍 Navbar: checkUserInfo called');
         try {
@@ -76,55 +77,26 @@ export const Navbar = () => {
         }
       };
 
-      // İlk yükleme
-      console.log('🎯 Navbar: Calling initial checkUserInfo');
+      // İlk kontrol
+      console.log('🎯 Navbar: Initial auth check');
       checkUserInfo();
 
-      // localStorage değişikliklerini dinle
-      const handleStorageChange = (e: StorageEvent) => {
-        console.log('📦 Navbar: Storage event detected:', e.key);
-        if (e.key === 'userInfo' || e.key === 'accessToken') {
-          console.log('🔄 Navbar: Auth-related storage change, checking user info...');
-          checkUserInfo();
-        }
+      // Sadece login/logout event'lerini dinle
+      const handleAuthChange = () => {
+        console.log('🎯 Navbar: Auth change event detected');
+        setTimeout(checkUserInfo, 100); // Kısa delay ile kontrol et
       };
 
-      // Custom event listener (same-page localStorage changes için)
-      const handleCustomStorageChange = () => {
-        console.log('🎯 Navbar: Custom storage change event');
-        checkUserInfo();
-      };
-
-      // Force update event listener
-      const handleForceUpdate = (e: any) => {
-        console.log('🔄 Navbar: Force update event', e.detail);
-        if (e.detail) {
-          setUser(e.detail);
-        } else {
-          checkUserInfo();
-        }
-      };
-
-      // Periyodik kontrol (fallback olarak)
-      console.log('⏰ Navbar: Setting up interval check every 1000ms');
-      const interval = setInterval(checkUserInfo, 1000);
-
-      console.log('👂 Navbar: Adding event listeners');
-      window.addEventListener('storage', handleStorageChange);
-      window.addEventListener('userInfoChanged', handleCustomStorageChange);
-      window.addEventListener('forceNavbarUpdate', handleForceUpdate);
+      // Event listener'ı ekle
+      console.log('👂 Navbar: Adding userInfoChanged event listener');
+      window.addEventListener('userInfoChanged', handleAuthChange);
 
       return () => {
-        console.log('🧹 Navbar: Cleaning up event listeners and interval');
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('userInfoChanged', handleCustomStorageChange);
-        window.removeEventListener('forceNavbarUpdate', handleForceUpdate);
-        clearInterval(interval);
+        console.log('🧹 Navbar: Cleaning up event listener');
+        window.removeEventListener('userInfoChanged', handleAuthChange);
       };
-    } else {
-      console.log('⏳ Navbar: Waiting for mount or window, mounted:', mounted, 'window:', typeof window);
     }
-  }, [mounted]);
+  }, [mounted]); // user dependency'sini kaldır ki sonsuz döngü olmasın
 
   const handleLogout = async () => {
     if (typeof window !== 'undefined') {
